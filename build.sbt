@@ -2,7 +2,7 @@ name := "ExplorerBack"
 
 version := "0.1"
 
-scalaVersion := "2.13.1"
+scalaVersion := "2.12.10"
 
 val doobieVersion      = "0.8.8"
 val fs2Version         = "2.1.0"
@@ -14,6 +14,7 @@ val circeVersion       = "0.12.3"
 val doobie: Seq[ModuleID] = Seq(
   "org.tpolecat" %% "doobie-core"      % doobieVersion,
   "org.tpolecat" %% "doobie-postgres"  % doobieVersion,
+  "org.tpolecat" %% "doobie-hikari"    % doobieVersion,
   "org.tpolecat" %% "doobie-scalatest" % doobieVersion % "test"
 )
 
@@ -42,6 +43,7 @@ libraryDependencies ++= Seq(
   "io.estatico"           %% "newtype"        % "0.4.3",
   "com.github.pureconfig" %% "pureconfig"     % "0.12.2",
   "com.google.guava"      % "guava"           % "28.2-jre",
+  "org.encry"             %% "encry-common"   % "0.9.3",
   "org.scalatest"         %% "scalatest"      % "3.1.0" % Test
 ) ++ doobie ++ cats ++ http4s ++ circe
 
