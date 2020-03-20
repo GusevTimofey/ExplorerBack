@@ -6,7 +6,6 @@ import encry.explorer.core._
 import encry.explorer.core.db.models.Header
 import encry.explorer.core.db.quaries.HeaderQueries
 import doobie.implicits._
-import doobie.postgres.implicits._
 
 trait HeaderRepository[F[_]] {
 
