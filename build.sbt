@@ -2,7 +2,7 @@ name := "ExplorerBack"
 
 version := "0.1"
 
-scalaVersion := "2.12.10"
+scalaVersion := "2.12.11"
 
 val doobieVersion      = "0.8.8"
 val fs2Version         = "2.1.0"
@@ -16,6 +16,7 @@ val doobie: Seq[ModuleID] = Seq(
   "org.tpolecat" %% "doobie-core"      % doobieVersion,
   "org.tpolecat" %% "doobie-postgres"  % doobieVersion,
   "org.tpolecat" %% "doobie-hikari"    % doobieVersion,
+  "org.tpolecat" %% "doobie-refined"   % doobieVersion,
   "org.tpolecat" %% "doobie-scalatest" % doobieVersion % "test"
 )
 
@@ -46,14 +47,17 @@ libraryDependencies ++= Seq(
   "com.google.guava"      % "guava"           % "28.2-jre",
   "org.encry"             %% "encry-common"   % "0.9.3",
   "com.github.mpilquist"  %% "simulacrum"     % simulacrumVersion,
-  "org.scalatest"         %% "scalatest"      % "3.1.0" % Test
+  "org.scalatest"         %% "scalatest"      % "3.1.0" % Test,
+  "org.scalaz"            %% "deriving-macro" % "1.0.0"
 ) ++ doobie ++ cats ++ http4s ++ circe
 
 scalacOptions ++= Seq(
   "-language:postfixOps",
   "-language:higherKinds",
+  "-language:implicitConversions",
   "-Ypartial-unification"
 )
 
-addCompilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.1")
-addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.11.0" cross CrossVersion.patch)
+addCompilerPlugin("com.olegpy"      %% "better-monadic-for" % "0.3.1")
+addCompilerPlugin("org.typelevel"   %% "kind-projector"     % "0.11.0" cross CrossVersion.patch)
+addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
