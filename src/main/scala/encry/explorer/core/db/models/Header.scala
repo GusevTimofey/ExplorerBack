@@ -4,13 +4,16 @@ import encry.explorer.core._
 
 final case class Header(
   id: Id,
-  version: Version,
   parentId: Id,
   transactionsRoot: TransactionRoot,
-  timestamp: Timestamp,
-  height: HeaderHeight,
-  nonce: Nonce,
-  difficulty: Difficulty,
   stateRoot: StateRoot,
-  equihashSolution: List[Int]
+  version: Version,
+  height: HeaderHeight,
+  difficulty: Difficulty,
+  timestamp: Timestamp,
+  nonce: Nonce,
+  equihashSolution: List[Int],
+  transactionQuantity: TransactionsQuantity,
+  minerAddress: ContractHash,
+  isInBestChain: Boolean
 )

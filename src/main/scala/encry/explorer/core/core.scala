@@ -1,18 +1,35 @@
 package encry.explorer
 
 import doobie.util.meta.Meta
+import eu.timepit.refined.string.{ MatchesRegex, Url }
 import io.estatico.newtype.macros.newtype
+import eu.timepit.refined.W
+import io.circe.{ Decoder, Encoder }
+import core.refinedTypes._
+import doobie.refined.implicits._
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.types.string.HexString
 
 package object core {
+
+  object refinedTypes {
+
+    type UrlAddressType = String Refined Url
+
+  }
 
   @newtype
   final case class Timestamp(value: Long)
   object Timestamp {
-    implicit def meta: Meta[Timestamp] = deriving
+    implicit def meta: Meta[Timestamp]       = deriving
+    implicit def encoder: Encoder[Timestamp] = deriving
+    implicit def decoder: Decoder[Timestamp] = deriving
   }
 
   @newtype
-  final case class Id(value: String)
+  final case class Id(value: HexString) {
+    def getValue: String = value.value
+  }
   object Id {
     implicit def meta: Meta[Id] = deriving
   }
@@ -24,13 +41,13 @@ package object core {
   }
 
   @newtype
-  final case class TransactionRoot(value: String)
+  final case class TransactionRoot(value: HexString)
   object TransactionRoot {
     implicit def meta: Meta[TransactionRoot] = deriving
   }
 
   @newtype
-  final case class StateRoot(value: String)
+  final case class StateRoot(value: HexString)
   object StateRoot {
     implicit def meta: Meta[StateRoot] = deriving
   }
@@ -60,7 +77,7 @@ package object core {
   }
 
   @newtype
-  final case class ContractHash(value: String)
+  final case class ContractHash(value: HexString)
   object ContractHash {
     implicit def meta: Meta[ContractHash] = deriving
   }
@@ -100,4 +117,13 @@ package object core {
   object InputContract {
     implicit def meta: Meta[InputContract] = deriving
   }
+
+  @newtype
+  final case class TransactionsQuantity(value: Int)
+  object TransactionsQuantity {
+    implicit def meta: Meta[TransactionsQuantity] = deriving
+  }
+
+  @newtype
+  final case class UrlAddress(value: UrlAddressType)
 }

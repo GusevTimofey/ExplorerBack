@@ -14,7 +14,8 @@ CREATE TABLE HEADERS
     nonce             BIGINT        NOT NULL,
     equihash_solution INTEGER ARRAY NOT NULL,
     txs_count         INTEGER DEFAULT 1,
-    miner_address     VARCHAR(64)   NOT NULL
+    miner_address     VARCHAR(64)   NOT NULL,
+    is_in_best_chain  BOOLEAN       NOT NULL
 );
 
 CREATE INDEX "header_height_index" ON HEADERS (id); /* Used for faster iteration around the height */
