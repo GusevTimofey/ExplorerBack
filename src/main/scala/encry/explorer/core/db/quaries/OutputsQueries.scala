@@ -31,7 +31,7 @@ object OutputsQueries extends QueriesFrame {
   def getBy(id: Id): Query0[Output] =
     sql"""SELECT * FROM $table WHERE id = ${id.getValue}""".query[Output]
 
-  def getBy(contractHash: ContractHash): Query0[Output] =
+  def getByC(contractHash: ContractHash): Query0[Output] =
     sql"""SELECT * FROM $table WHERE contract_hash = ${contractHash.getValue}""".query[Output]
 
   def getByTransaction(id: Id): Query0[Output] =

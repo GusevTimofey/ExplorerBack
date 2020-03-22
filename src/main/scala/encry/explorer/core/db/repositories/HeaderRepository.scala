@@ -10,7 +10,7 @@ trait HeaderRepository[F[_]] {
 
   def getBy(id: Id): F[Option[Header]]
 
-  def getBy(height: HeaderHeight): F[Option[Header]]
+  def getByH(height: HeaderHeight): F[Option[Header]]
 
   def getByParent(id: Id): F[Option[Header]]
 
@@ -28,8 +28,8 @@ object HeaderRepository {
       override def getBy(id: Id): F[Option[Header]] =
         HeadersQueries.getBy(id).option.liftF
 
-      override def getBy(height: HeaderHeight): F[Option[Header]] =
-        HeadersQueries.getBy(height).option.liftF
+      override def getByH(height: HeaderHeight): F[Option[Header]] =
+        HeadersQueries.getByH(height).option.liftF
 
       override def getByParent(id: Id): F[Option[Header]] =
         HeadersQueries.getByParent(id).option.liftF

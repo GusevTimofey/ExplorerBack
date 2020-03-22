@@ -10,7 +10,7 @@ trait OutputRepository[F[_]] {
 
   def getBy(id: Id): F[Option[Output]]
 
-  def getBy(contractHash: ContractHash): F[Option[Output]]
+  def getByC(contractHash: ContractHash): F[Option[Output]]
 
   def getByTransaction(id: Id): F[Option[Output]]
 
@@ -22,8 +22,8 @@ object OutputRepository {
     override def getBy(id: Id): F[Option[Output]] =
       OutputsQueries.getBy(id).option.liftF
 
-    override def getBy(contractHash: ContractHash): F[Option[Output]] =
-      OutputsQueries.getBy(contractHash).option.liftF
+    override def getByC(contractHash: ContractHash): F[Option[Output]] =
+      OutputsQueries.getByC(contractHash).option.liftF
 
     override def getByTransaction(id: Id): F[Option[Output]] =
       OutputsQueries.getByTransaction(id).option.liftF

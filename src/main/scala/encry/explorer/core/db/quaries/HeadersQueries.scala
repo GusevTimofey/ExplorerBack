@@ -33,7 +33,7 @@ object HeadersQueries extends QueriesFrame {
   def getBy(id: Id): Query0[Header] =
     sql"""SELECT * FROM $table WHERE id = ${id.getValue}""".query[Header]
 
-  def getBy(height: HeaderHeight): Query0[Header] =
+  def getByH(height: HeaderHeight): Query0[Header] =
     sql"""SELECT * FROM $table WHERE height = ${height.value}""".query[Header]
 
   def getByParent(id: Id): Query0[Header] =
