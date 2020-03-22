@@ -9,7 +9,7 @@ import encry.explorer.core.db.models.Transaction
 //todo import doobie.postgres.implicits._
 import doobie.postgres.implicits._
 
-object TransactionQueries extends QueriesFrame {
+object TransactionsQueries extends QueriesFrame {
 
   override val fields: List[String] =
     List(

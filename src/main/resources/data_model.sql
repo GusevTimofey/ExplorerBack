@@ -50,7 +50,7 @@ CREATE TABLE OUTPUTS
     id             VARCHAR(64) PRIMARY KEY,
     tx_id          VARCHAR(64) REFERENCES TRANSACTIONS (id),
     output_type_id SMALLINT    NOT NULL,
-    contract_hash  VARCHAR(64) NOT NULL REFERENCES WALLETS (contract_hash),
+    contract_hash  VARCHAR(64) NOT NULL, /* REFERENCES WALLETS (contract_hash), */
     is_active      BOOLEAN     NOT NULL,
     nonce          BIGINT      NOT NULL,
     amount         BIGINT,
@@ -61,7 +61,7 @@ CREATE TABLE OUTPUTS
 CREATE INDEX "outputs_tx_id_index" ON OUTPUTS (tx_id);
 CREATE INDEX "outputs_is_active" ON OUTPUTS (is_active);
 
-CREATE TABLE WALLETS
+/* CREATE TABLE WALLETS
 (
     contract_hash VARCHAR(64),
     token_id      VARCHAR(64),
@@ -71,3 +71,4 @@ CREATE TABLE WALLETS
 
 CREATE INDEX "wallets_contract_hash" ON WALLETS (contract_hash);
 CREATE INDEX "wallets_contract_hash" ON WALLETS (token_id);
+ */

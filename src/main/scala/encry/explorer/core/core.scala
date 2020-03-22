@@ -39,13 +39,13 @@ package object core {
   }
 
   @newtype
-  final case class TransactionRoot(value: HexString)
+  final case class TransactionRoot(value: String)
   object TransactionRoot {
     implicit def meta: Meta[TransactionRoot] = deriving
   }
 
   @newtype
-  final case class StateRoot(value: HexString)
+  final case class StateRoot(value: String)
   object StateRoot {
     implicit def meta: Meta[StateRoot] = deriving
   }
@@ -75,7 +75,9 @@ package object core {
   }
 
   @newtype
-  final case class ContractHash(value: HexString)
+  final case class ContractHash(value: HexString) {
+    def getValue: String = value.value
+  }
   object ContractHash {
     implicit def meta: Meta[ContractHash] = deriving
   }

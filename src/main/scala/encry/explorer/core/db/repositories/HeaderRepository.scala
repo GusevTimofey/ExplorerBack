@@ -1,11 +1,10 @@
 package encry.explorer.core.db.repositories
 
-import cats.effect.Bracket
-import doobie.hikari.HikariTransactor
-import doobie.implicits._
 import encry.explorer.core._
+import encry.explorer.core.db.algebra.LiftConnectionIO
+import encry.explorer.core.db.algebra.LiftConnectionIO.syntaxConnectionIO._
 import encry.explorer.core.db.models.Header
-import encry.explorer.core.db.quaries.HeaderQueries
+import encry.explorer.core.db.quaries.HeadersQueries
 
 trait HeaderRepository[F[_]] {
 
@@ -13,25 +12,35 @@ trait HeaderRepository[F[_]] {
 
   def getBy(height: HeaderHeight): F[Option[Header]]
 
+  def getByParent(id: Id): F[Option[Header]]
+
   def getBestAt(height: HeaderHeight): F[Option[Header]]
 
-  def getByParent(id: Id): F[Option[Header]]
+  def insert(header: Header): F[Int]
+
+  def updateBestChainField(id: Id, statement: Boolean): F[Int]
 }
 
 object HeaderRepository {
 
-  def apply[F[_]: Bracket[*[_], Throwable]](tx: HikariTransactor[F]): HeaderRepository[F] =
+  def apply[F[_]: LiftConnectionIO]: HeaderRepository[F] =
     new HeaderRepository[F] {
       override def getBy(id: Id): F[Option[Header]] =
-        HeaderQueries.getBy(id).option.transact[F](tx)
+        HeadersQueries.getBy(id).option.liftF
 
       override def getBy(height: HeaderHeight): F[Option[Header]] =
-        HeaderQueries.getBy(height).option.transact[F](tx)
-
-      override def getBestAt(height: HeaderHeight): F[Option[Header]] =
-        HeaderQueries.getBestAt(height).option.transact[F](tx)
+        HeadersQueries.getBy(height).option.liftF
 
       override def getByParent(id: Id): F[Option[Header]] =
-        HeaderQueries.getByParent(id).option.transact[F](tx)
+        HeadersQueries.getByParent(id).option.liftF
+
+      override def getBestAt(height: HeaderHeight): F[Option[Header]] =
+        HeadersQueries.getBestAt(height).option.liftF
+
+      override def insert(header: Header): F[Int] =
+        HeadersQueries.insert(header).run.liftF
+
+      override def updateBestChainField(id: Id, statement: Boolean): F[Int] =
+        HeadersQueries.updateBestChainField(id, statement).run.liftF
     }
 }
