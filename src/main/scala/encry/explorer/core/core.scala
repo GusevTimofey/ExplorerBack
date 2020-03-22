@@ -1,14 +1,12 @@
 package encry.explorer
 
 import doobie.util.meta.Meta
-import eu.timepit.refined.string.{ MatchesRegex, Url }
-import io.estatico.newtype.macros.newtype
-import eu.timepit.refined.W
-import io.circe.{ Decoder, Encoder }
-import core.refinedTypes._
-import doobie.refined.implicits._
+import encry.explorer.core.refinedTypes._
 import eu.timepit.refined.api.Refined
+import eu.timepit.refined.string.Url
 import eu.timepit.refined.types.string.HexString
+import io.circe.{ Decoder, Encoder }
+import io.estatico.newtype.macros.newtype
 
 package object core {
 
