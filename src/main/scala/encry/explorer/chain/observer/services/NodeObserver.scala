@@ -1,10 +1,9 @@
 package encry.explorer.chain.observer.services
 
-import cats.Applicative
 import cats.effect.Sync
 import cats.syntax.functor._
 import cats.syntax.option._
-import encry.explorer.chain.observer.http.api.models.HttpApiBlock
+import encry.explorer.chain.observer.http.api.models.{ HttpApiBlock, HttpApiNodeInfo }
 import encry.explorer.core._
 import encry.explorer.core.{ HeaderHeight, Id }
 import org.http4s.client.Client
@@ -23,9 +22,11 @@ trait NodeObserver[F[_]] {
 
   def getBlockBy(id: Id): F[Option[HttpApiBlock]]
 
-  def getInfo: F[Unit]
+  def getInfo: F[HttpApiNodeInfo]
 
-  def getBestHeight: F[Unit]
+  def getBestFullHeight: F[Int]
+
+  def getBestHeadersHeight: F[Int]
 
 }
 
@@ -50,9 +51,14 @@ object NodeObserver {
       client
         .expectOption[HttpApiBlock](getRequest(s"$url/history/$id"))
 
-    override def getInfo: F[Unit] = Applicative[F].unit
+    override def getInfo: F[HttpApiNodeInfo] =
+      client.expect[HttpApiNodeInfo](getRequest(s"$url/info"))
 
-    override def getBestHeight: F[Unit] = Applicative[F].unit
+    override def getBestFullHeight: F[Int] =
+      getInfo.map(_.bestFullHeaderId)
+
+    override def getBestHeadersHeight: F[Int] =
+      getInfo.map(_.bestHeaderId)
 
     private def getRequest(url: String): Request[F] = Request[F](Method.GET, Uri.unsafeFromString(url))
   }
