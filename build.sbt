@@ -17,13 +17,14 @@ val doobie: Seq[ModuleID] = Seq(
   "org.tpolecat" %% "doobie-postgres"  % doobieVersion,
   "org.tpolecat" %% "doobie-hikari"    % doobieVersion,
   "org.tpolecat" %% "doobie-refined"   % doobieVersion,
-  "org.tpolecat" %% "doobie-scalatest" % doobieVersion % "test"
+  "org.tpolecat" %% "doobie-scalatest" % doobieVersion % Test
 )
 
 val circe: Seq[ModuleID] = Seq(
   "io.circe" %% "circe-core"    % circeVersion,
   "io.circe" %% "circe-generic" % circeVersion,
-  "io.circe" %% "circe-parser"  % circeVersion
+  "io.circe" %% "circe-parser"  % circeVersion,
+  "io.circe" %% "circe-refined" % circeVersion
 )
 
 val cats: Seq[ModuleID] = Seq(

@@ -5,61 +5,113 @@ import encry.explorer.core.refinedTypes._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.Url
 import eu.timepit.refined.types.string.HexString
+import io.circe.{ Decoder, Encoder }
 import io.estatico.newtype.macros.newtype
 //todo This import has to be declared in the scope. Doesn't compile without it. Intellij IDEA bug.
-//todo import doobie.refined.implicits._
+//todo import doobie.refined.implicits._; import io.circe.refined._
 import doobie.refined.implicits._
+import io.circe.refined._
 
 package object core {
 
   object refinedTypes { type UrlAddressType = String Refined Url }
 
   @newtype final case class Timestamp(value: Long)
-  object Timestamp { implicit def meta: Meta[Timestamp] = deriving }
+  object Timestamp {
+    implicit def meta: Meta[Timestamp]       = deriving
+    implicit def encoder: Encoder[Timestamp] = deriving
+    implicit def decoder: Decoder[Timestamp] = deriving
+  }
 
   @newtype final case class Id(value: HexString) { def getValue: String = value.value }
-
-  object Id { implicit def meta: Meta[Id] = deriving }
+  object Id {
+    implicit def meta: Meta[Id]       = deriving
+    implicit def encoder: Encoder[Id] = deriving
+    implicit def decoder: Decoder[Id] = deriving
+  }
 
   @newtype final case class HeaderHeight(value: Int)
-  object HeaderHeight { implicit def meta: Meta[HeaderHeight] = deriving }
+  object HeaderHeight {
+    implicit def meta: Meta[HeaderHeight]       = deriving
+    implicit def encoder: Encoder[HeaderHeight] = deriving
+    implicit def decoder: Decoder[HeaderHeight] = deriving
+  }
 
   @newtype final case class TransactionRoot(value: HexString)
-  object TransactionRoot { implicit def meta: Meta[TransactionRoot] = deriving }
+  object TransactionRoot {
+    implicit def meta: Meta[TransactionRoot]       = deriving
+    implicit def encoder: Encoder[TransactionRoot] = deriving
+    implicit def decoder: Decoder[TransactionRoot] = deriving
+  }
 
   @newtype final case class StateRoot(value: HexString)
-  object StateRoot { implicit def meta: Meta[StateRoot] = deriving }
+  object StateRoot {
+    implicit def meta: Meta[StateRoot]       = deriving
+    implicit def encoder: Encoder[StateRoot] = deriving
+    implicit def decoder: Decoder[StateRoot] = deriving
+  }
 
   @newtype final case class Version(value: Byte)
-  object Version { implicit def meta: Meta[Version] = deriving }
+  object Version {
+    implicit def meta: Meta[Version]       = deriving
+    implicit def encoder: Encoder[Version] = deriving
+    implicit def decoder: Decoder[Version] = deriving
+  }
 
   @newtype final case class Nonce(value: Long)
-  object Nonce { implicit def meta: Meta[Nonce] = deriving }
+  object Nonce {
+    implicit def meta: Meta[Nonce]       = deriving
+    implicit def encoder: Encoder[Nonce] = deriving
+    implicit def decoder: Decoder[Nonce] = deriving
+  }
 
   @newtype final case class Difficulty(value: Long)
-  object Difficulty { implicit def meta: Meta[Difficulty] = deriving }
+  object Difficulty {
+    implicit def meta: Meta[Difficulty]       = deriving
+    implicit def encoder: Encoder[Difficulty] = deriving
+    implicit def decoder: Decoder[Difficulty] = deriving
+  }
 
   @newtype final case class TxFee(value: Long)
   object TxFee { implicit def meta: Meta[TxFee] = deriving }
 
   @newtype final case class ContractHash(value: HexString) { def getValue: String = value.value }
-
-  object ContractHash { implicit def meta: Meta[ContractHash] = deriving }
+  object ContractHash {
+    implicit def meta: Meta[ContractHash] = deriving
+    implicit def encoder: Encoder[ContractHash] = deriving
+    implicit def decoder: Decoder[ContractHash] = deriving
+  }
 
   @newtype final case class Amount(value: Long)
-  object Amount { implicit def meta: Meta[Amount] = deriving }
+  object Amount {
+    implicit def meta: Meta[Amount]       = deriving
+    implicit def encoder: Encoder[Amount] = deriving
+    implicit def decoder: Decoder[Amount] = deriving
+  }
 
   @newtype final case class TokenId(value: Array[Byte])
-  object TokenId { implicit def meta: Meta[TokenId] = deriving }
+  object TokenId {
+    implicit def meta: Meta[TokenId] = deriving
+    implicit def encoder: Encoder[TokenId] = deriving
+    implicit def decoder: Decoder[TokenId] = deriving
+  }
 
   @newtype final case class Data(value: Array[Byte])
-  object Data { implicit def meta: Meta[Data] = deriving }
+  object Data {
+    implicit def meta: Meta[Data] = deriving
+    implicit def encoder: Encoder[Data] = deriving
+    implicit def decoder: Decoder[Data] = deriving
+  }
 
   @newtype final case class SerializedProofValue(value: String)
   object SerializedProofValue { implicit def meta: Meta[SerializedProofValue] = deriving }
 
   @newtype final case class Address(value: HexString)
-  object Address { implicit def meta: Meta[Address] = deriving }
+  object Address {
+    implicit def meta: Meta[Address] = deriving
+    implicit def encoder: Encoder[Address] = deriving
+    implicit def decoder: Decoder[Address] = deriving
+  }
 
   @newtype final case class InputContract(value: HexString)
   object InputContract { implicit def meta: Meta[InputContract] = deriving }
