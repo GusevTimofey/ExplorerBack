@@ -7,7 +7,7 @@ import eu.timepit.refined.string.Url
 import eu.timepit.refined.types.string.HexString
 import io.circe.{ Decoder, Encoder }
 import io.estatico.newtype.macros.newtype
-//todo This import has to be declared in the scope. Doesn't compile without it. Intellij IDEA bug.
+//todo These imports have to be declared in the scope. Doesn't compile without it. Intellij IDEA bug.
 //todo import doobie.refined.implicits._; import io.circe.refined._
 import doobie.refined.implicits._
 import io.circe.refined._

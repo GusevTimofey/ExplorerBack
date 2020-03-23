@@ -60,6 +60,7 @@ object NodeObserver {
     override def getBestHeadersHeight: F[Int] =
       getInfo.map(_.bestHeaderId)
 
-    private def getRequest(url: String): Request[F] = Request[F](Method.GET, Uri.unsafeFromString(url))
+    private def getRequest(url: String): Request[F] =
+      Request[F](Method.GET, Uri.unsafeFromString(url))
   }
 }
