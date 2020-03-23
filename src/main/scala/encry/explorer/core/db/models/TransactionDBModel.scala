@@ -2,7 +2,7 @@ package encry.explorer.core.db.models
 
 import encry.explorer.core._
 
-final case class Transaction(
+final case class TransactionDBModel(
   id: Id,
   headerId: Id,
   fee: TxFee,

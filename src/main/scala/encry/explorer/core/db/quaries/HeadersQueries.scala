@@ -3,7 +3,7 @@ package encry.explorer.core.db.quaries
 import doobie.implicits._
 import doobie.util.query.Query0
 import doobie.util.update.Update0
-import encry.explorer.core.db.models.Header
+import encry.explorer.core.db.models.HeaderDBModel
 import encry.explorer.core.{ HeaderHeight, Id }
 //todo This import has to be declared in the scope. Doesn't compile without it. Intellij IDEA bug.
 //todo import doobie.postgres.implicits._
@@ -30,19 +30,19 @@ object HeadersQueries extends QueriesFrame {
       "is_in_best_chain"
     )
 
-  def getBy(id: Id): Query0[Header] =
-    sql"""SELECT * FROM $table WHERE id = ${id.getValue}""".query[Header]
+  def getBy(id: Id): Query0[HeaderDBModel] =
+    sql"""SELECT * FROM $table WHERE id = ${id.getValue}""".query[HeaderDBModel]
 
-  def getByH(height: HeaderHeight): Query0[Header] =
-    sql"""SELECT * FROM $table WHERE height = ${height.value}""".query[Header]
+  def getByH(height: HeaderHeight): Query0[HeaderDBModel] =
+    sql"""SELECT * FROM $table WHERE height = ${height.value}""".query[HeaderDBModel]
 
-  def getByParent(id: Id): Query0[Header] =
-    sql"""SELECT * FROM $table WHERE parent_id = ${id.getValue}""".query[Header]
+  def getByParent(id: Id): Query0[HeaderDBModel] =
+    sql"""SELECT * FROM $table WHERE parent_id = ${id.getValue}""".query[HeaderDBModel]
 
-  def getBestAt(height: HeaderHeight): Query0[Header] =
-    sql"""SELECT * FROM $table WHERE height = ${height.value} AND is_in_best_chain = TRUE""".query[Header]
+  def getBestAt(height: HeaderHeight): Query0[HeaderDBModel] =
+    sql"""SELECT * FROM $table WHERE height = ${height.value} AND is_in_best_chain = TRUE""".query[HeaderDBModel]
 
-  def insert(header: Header): Update0 =
+  def insert(header: HeaderDBModel): Update0 =
     sql"""INSERT INTO $table ($fieldsToQuery) VALUES ($valuesToQuery) ON CONFLICT DO NOTHING""".update
 
   def updateBestChainField(id: Id, statement: Boolean): Update0 =

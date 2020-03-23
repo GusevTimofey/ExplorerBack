@@ -1,4 +1,4 @@
-package encry.explorer.core.db.models.boxes
+package encry.explorer.chain.observer.http.api.models.boxes
 
 import encry.explorer.core._
 

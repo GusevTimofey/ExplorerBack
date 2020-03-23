@@ -2,7 +2,7 @@ package encry.explorer.core.db.models
 
 import encry.explorer.core._
 
-final case class Output(
+final case class OutputDBModel(
   id: Id,
   transactionId: Id,
   outputTypeId: Byte,
