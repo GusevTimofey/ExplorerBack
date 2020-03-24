@@ -6,7 +6,7 @@ import cats.syntax.option._
 import cats.syntax.flatMap._
 import cats.syntax.applicative._
 import cats.syntax.applicativeError._
-import encry.explorer.chain.observer.http.api.models.{ HttpApiBlock, HttpApiNodeInfo }
+import encry.explorer.chain.observer.http.api.models.{ HttpApiBlock, HttpApiNodeInfo, HttpApiPeersInfo }
 import encry.explorer.core._
 import encry.explorer.core.{ HeaderHeight, Id }
 import org.http4s.client.Client
@@ -31,6 +31,8 @@ trait NodeObserver[F[_]] {
   def getBestFullHeight: F[Int]
 
   def getBestHeadersHeight: F[Int]
+
+  def getConnectedPeers: F[List[HttpApiPeersInfo]]
 
 }
 
@@ -67,6 +69,9 @@ object NodeObserver {
 
     override def getBestHeadersHeight: F[Int] =
       getInfo.map(_.bestHeaderId)
+
+    override def getConnectedPeers: F[List[HttpApiPeersInfo]] =
+      client.expect[List[HttpApiPeersInfo]](getRequest(s"$url/peers/connected"))
 
     private def getRequest(url: String): Request[F] =
       Request[F](Method.GET, Uri.unsafeFromString(url))

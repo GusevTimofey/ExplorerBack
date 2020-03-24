@@ -1,5 +1,7 @@
 package encry.explorer.core.db.models
 
+import encry.explorer.chain.observer.http.api.models.HttpApiBlock
+import encry.explorer.chain.observer.http.api.models.boxes.HttpApiAssetBox
 import encry.explorer.core._
 
 final case class HeaderDBModel(
@@ -17,3 +19,22 @@ final case class HeaderDBModel(
   minerAddress: ContractHash,
   isInBestChain: Boolean
 )
+
+object HeaderDBModel {
+  def fromHttpApi(inputBlock: HttpApiBlock): HeaderDBModel =
+    HeaderDBModel(
+      inputBlock.header.id,
+      inputBlock.header.parentId,
+      inputBlock.header.txRoot,
+      inputBlock.header.stateRoot,
+      inputBlock.header.version,
+      inputBlock.header.height,
+      inputBlock.header.difficulty,
+      inputBlock.header.timestamp,
+      inputBlock.header.nonce,
+      inputBlock.header.equihashSolution,
+      TransactionsQuantity(inputBlock.payload.transactions.size),
+      inputBlock.payload.transactions.last.outputs.collect { case ab: HttpApiAssetBox => ab }.last.proposition.contractHash,
+      isInBestChain = true
+    )
+}

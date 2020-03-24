@@ -14,6 +14,8 @@ trait TransactionRepository[F[_]] {
 
   def insert(transaction: TransactionDBModel): F[Int]
 
+  def insertMany(transactions: List[TransactionDBModel]): F[Int]
+
 }
 
 object TransactionRepository {
@@ -28,5 +30,8 @@ object TransactionRepository {
 
       override def insert(transaction: TransactionDBModel): F[Int] =
         TransactionsQueries.insert(transaction).run.liftF
+
+      override def insertMany(transactions: List[TransactionDBModel]): F[Int] =
+        TransactionsQueries.insertMany(transactions).liftF
     }
 }

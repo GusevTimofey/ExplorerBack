@@ -8,7 +8,7 @@ import simulacrum.typeclass
 
   def liftOp: ConnectionIO ~> F
 
-  def liftF[T](v: ConnectionIO[_]): F[T]
+  def liftF[T](v: ConnectionIO[T]): F[T]
 }
 
 object LiftConnectionIO {
