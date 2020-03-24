@@ -7,5 +7,5 @@ final case class HttpApiScriptedAssetDirective(
   typeId: TypeId,
   contractHash: ContractHash,
   amount: Amount,
-  tokenIdOpt: Option[TokenId]
+  tokenId: Option[TokenId]
 ) extends HttpApiDirective

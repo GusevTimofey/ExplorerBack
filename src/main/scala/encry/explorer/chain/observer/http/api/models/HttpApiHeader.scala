@@ -7,7 +7,7 @@ final case class HttpApiHeader(
   version: Version,
   parentId: Id,
   payloadId: Id,
-  transactionsRoot: TransactionRoot,
+  txRoot: TransactionRoot,
   timestamp: Timestamp,
   height: HeaderHeight,
   nonce: Nonce,

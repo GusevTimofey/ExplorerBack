@@ -7,5 +7,5 @@ final case class HttpApiTransferDirective(
   typeId: TypeId,
   address: Address,
   amount: Amount,
-  tokenIdOpt: Option[TokenId]
+  tokenId: String //todo bug in encry protocol. see https://github.com/EncryFoundation/EncryCommon/pull/22
 ) extends HttpApiDirective

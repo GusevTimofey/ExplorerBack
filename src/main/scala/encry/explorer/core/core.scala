@@ -5,7 +5,6 @@ import doobie.util.meta.Meta
 import encry.explorer.core.refinedInstances.{ Base16, UrlString }
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.{ HexStringSpec, Url }
-import eu.timepit.refined.types.string.HexString
 import io.circe.{ Decoder, Encoder }
 import eu.timepit.refined.refineV
 import cats.syntax.applicative._
@@ -52,18 +51,32 @@ package object core {
     implicit def decoder: Decoder[HeaderHeight] = deriving
   }
 
-  @newtype final case class TransactionRoot(value: HexString)
+  @newtype final case class TransactionRoot(value: String)
   object TransactionRoot {
     implicit def meta: Meta[TransactionRoot]       = deriving
     implicit def encoder: Encoder[TransactionRoot] = deriving
     implicit def decoder: Decoder[TransactionRoot] = deriving
+
+//    def fromString[F[_]: Applicative: ApplicativeError[*[_], Throwable]](string: String): F[TransactionRoot] =
+//      refineV[HexStringSpec](string) match {
+//        case Left(err) =>
+//          ApplicativeError[F, Throwable].raiseError(new Throwable(s"Incorrect nested hex if data data cause: $err"))
+//        case Right(value) => TransactionRoot.apply(value).pure[F]
+//      }
   }
 
-  @newtype final case class StateRoot(value: HexString)
+  @newtype final case class StateRoot(value: String)
   object StateRoot {
     implicit def meta: Meta[StateRoot]       = deriving
     implicit def encoder: Encoder[StateRoot] = deriving
     implicit def decoder: Decoder[StateRoot] = deriving
+
+//    def fromString[F[_]: Applicative: ApplicativeError[*[_], Throwable]](string: String): F[StateRoot] =
+//      refineV[HexStringSpec](string) match {
+//        case Left(err) =>
+//          ApplicativeError[F, Throwable].raiseError(new Throwable(s"Incorrect nested hex if data data cause: $err"))
+//        case Right(value) => StateRoot.apply(value).pure[F]
+//      }
   }
 
   @newtype final case class Version(value: Byte)
@@ -90,7 +103,7 @@ package object core {
   @newtype final case class TxFee(value: Long)
   object TxFee { implicit def meta: Meta[TxFee] = deriving }
 
-  @newtype final case class ContractHash(value: HexString) { def getValue: String = value.value }
+  @newtype final case class ContractHash(value: String) { def getValue: String = value }
   object ContractHash {
     implicit def meta: Meta[ContractHash]       = deriving
     implicit def encoder: Encoder[ContractHash] = deriving
@@ -121,14 +134,14 @@ package object core {
   @newtype final case class SerializedProofValue(value: String)
   object SerializedProofValue { implicit def meta: Meta[SerializedProofValue] = deriving }
 
-  @newtype final case class Address(value: HexString)
+  @newtype final case class Address(value: String)
   object Address {
     implicit def meta: Meta[Address]       = deriving
     implicit def encoder: Encoder[Address] = deriving
     implicit def decoder: Decoder[Address] = deriving
   }
 
-  @newtype final case class InputContract(value: HexString)
+  @newtype final case class InputContract(value: Base16)
   object InputContract { implicit def meta: Meta[InputContract] = deriving }
 
   @newtype final case class TransactionsQuantity(value: Int)

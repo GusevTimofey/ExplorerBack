@@ -9,5 +9,5 @@ final case class HttpApiAssetBox(
   proposition: EncryProposition,
   nonce: Nonce,
   value: Amount,
-  tokenIdOpt: Option[TokenId]
+  tokenId: Option[TokenId]
 ) extends HttpApiBox
