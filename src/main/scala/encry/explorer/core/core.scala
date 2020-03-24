@@ -1,11 +1,14 @@
 package encry.explorer
 
+import cats.{ Applicative, ApplicativeError }
 import doobie.util.meta.Meta
-import encry.explorer.core.refinedTypes._
+import encry.explorer.core.refinedInstances.{ Base16, UrlString }
 import eu.timepit.refined.api.Refined
-import eu.timepit.refined.string.Url
+import eu.timepit.refined.string.{ HexStringSpec, Url }
 import eu.timepit.refined.types.string.HexString
 import io.circe.{ Decoder, Encoder }
+import eu.timepit.refined.refineV
+import cats.syntax.applicative._
 import io.estatico.newtype.macros.newtype
 //todo These imports have to be declared in the scope. Doesn't compile without it. Intellij IDEA bug.
 //todo import doobie.refined.implicits._; import io.circe.refined._
@@ -14,7 +17,12 @@ import io.circe.refined._
 
 package object core {
 
-  object refinedTypes { type UrlAddressType = String Refined Url }
+  object refinedInstances {
+
+    type UrlString = String Refined Url
+
+    type Base16 = String Refined HexStringSpec
+  }
 
   @newtype final case class Timestamp(value: Long)
   object Timestamp {
@@ -23,11 +31,18 @@ package object core {
     implicit def decoder: Decoder[Timestamp] = deriving
   }
 
-  @newtype final case class Id(value: HexString) { def getValue: String = value.value }
+  @newtype final case class Id(value: Base16) { def getValue: String = value.value }
   object Id {
     implicit def meta: Meta[Id]       = deriving
     implicit def encoder: Encoder[Id] = deriving
     implicit def decoder: Decoder[Id] = deriving
+
+    def fromString[F[_]: Applicative: ApplicativeError[*[_], Throwable]](string: String): F[Id] =
+      refineV[HexStringSpec](string) match {
+        case Left(err) =>
+          ApplicativeError[F, Throwable].raiseError(new Throwable(s"Incorrect nested hex if data data cause: $err"))
+        case Right(value) => Id.apply(value).pure[F]
+      }
   }
 
   @newtype final case class HeaderHeight(value: Int)
@@ -77,7 +92,7 @@ package object core {
 
   @newtype final case class ContractHash(value: HexString) { def getValue: String = value.value }
   object ContractHash {
-    implicit def meta: Meta[ContractHash] = deriving
+    implicit def meta: Meta[ContractHash]       = deriving
     implicit def encoder: Encoder[ContractHash] = deriving
     implicit def decoder: Decoder[ContractHash] = deriving
   }
@@ -91,14 +106,14 @@ package object core {
 
   @newtype final case class TokenId(value: Array[Byte])
   object TokenId {
-    implicit def meta: Meta[TokenId] = deriving
+    implicit def meta: Meta[TokenId]       = deriving
     implicit def encoder: Encoder[TokenId] = deriving
     implicit def decoder: Decoder[TokenId] = deriving
   }
 
   @newtype final case class Data(value: Array[Byte])
   object Data {
-    implicit def meta: Meta[Data] = deriving
+    implicit def meta: Meta[Data]       = deriving
     implicit def encoder: Encoder[Data] = deriving
     implicit def decoder: Decoder[Data] = deriving
   }
@@ -108,7 +123,7 @@ package object core {
 
   @newtype final case class Address(value: HexString)
   object Address {
-    implicit def meta: Meta[Address] = deriving
+    implicit def meta: Meta[Address]       = deriving
     implicit def encoder: Encoder[Address] = deriving
     implicit def decoder: Decoder[Address] = deriving
   }
@@ -119,5 +134,13 @@ package object core {
   @newtype final case class TransactionsQuantity(value: Int)
   object TransactionsQuantity { implicit def meta: Meta[TransactionsQuantity] = deriving }
 
-  @newtype final case class UrlAddress(value: UrlAddressType)
+  @newtype final case class UrlAddress(value: UrlString)
+  object UrlAddress {
+    def fromString[F[_]: Applicative: ApplicativeError[*[_], Throwable]](string: String): F[UrlAddress] =
+      refineV[Url](string) match {
+        case Left(err) =>
+          ApplicativeError[F, Throwable].raiseError(new Throwable(s"Incorrect nested url data cause: $err"))
+        case Right(value) => UrlAddress.apply(value).pure[F]
+      }
+  }
 }
