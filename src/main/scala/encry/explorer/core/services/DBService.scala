@@ -4,11 +4,16 @@ import cats.effect.Timer
 import cats.syntax.applicative._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
-import cats.{Applicative, Monad}
+import cats.{ Applicative, Monad }
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
 import encry.explorer.core.RunnableProgram
-import encry.explorer.core.db.models.{HeaderDBModel, InputDBModel, OutputDBModel, TransactionDBModel}
-import encry.explorer.core.db.repositories.{HeaderRepository, InputRepository, OutputRepository, TransactionRepository}
+import encry.explorer.core.db.models.{ HeaderDBModel, InputDBModel, OutputDBModel, TransactionDBModel }
+import encry.explorer.core.db.repositories.{
+  HeaderRepository,
+  InputRepository,
+  OutputRepository,
+  TransactionRepository
+}
 import fs2.Stream
 import fs2.concurrent.Queue
 

@@ -42,14 +42,15 @@ val http4s: Seq[ModuleID] = Seq(
 )
 
 libraryDependencies ++= Seq(
-  "io.chrisdavenport"     %% "log4cats-slf4j" % "0.4.0-M2",
-  "io.estatico"           %% "newtype"        % "0.4.3",
-  "com.github.pureconfig" %% "pureconfig"     % "0.12.2",
-  "com.google.guava"      % "guava"           % "28.2-jre",
-  "org.encry"             %% "encry-common"   % "0.9.3",
-  "com.github.mpilquist"  %% "simulacrum"     % simulacrumVersion,
-  "eu.timepit"            %% "refined"        % "0.9.13",
-  "org.scalatest"         %% "scalatest"      % "3.1.0" % Test
+  "io.chrisdavenport"     %% "log4cats-slf4j"         % "0.4.0-M2",
+  "io.estatico"           %% "newtype"                % "0.4.3",
+  "com.github.pureconfig" %% "pureconfig"             % "0.12.2",
+  "com.github.pureconfig" %% "pureconfig-cats-effect" % "0.12.2",
+  "com.google.guava"      % "guava"                   % "28.2-jre",
+  "org.encry"             %% "encry-common"           % "0.9.3",
+  "com.github.mpilquist"  %% "simulacrum"             % simulacrumVersion,
+  "eu.timepit"            %% "refined"                % "0.9.13",
+  "org.scalatest"         %% "scalatest"              % "3.1.0" % Test
 ) ++ doobie ++ cats ++ http4s ++ circe
 
 scalacOptions ++= Seq(

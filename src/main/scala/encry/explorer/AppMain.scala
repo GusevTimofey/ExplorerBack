@@ -37,17 +37,19 @@ object AppMain extends IOApp {
                                                         override def liftF[T](v: ConnectionIO[T]): IO[T] =
                                                           liftOp.apply(v)
                                                       }.pure[IO])
-          } yield
-            List(
-              NetworkObserver.apply[IO](client, queue),
-              DBService.apply[IO](
-                queue,
-                HeaderRepository.apply[IO],
-                InputRepository.apply[IO],
-                OutputRepository.apply[IO],
-                TransactionRepository.apply[IO]
-              )
-            ).map(_.run.compile.drain)
+            no <- Resource.liftF(NetworkObserver.apply[IO](client, queue).pure[IO])
+            db <- Resource.liftF(
+                   DBService
+                     .apply[IO](
+                       queue,
+                       HeaderRepository.apply[IO],
+                       InputRepository.apply[IO],
+                       OutputRepository.apply[IO],
+                       TransactionRepository.apply[IO]
+                     )
+                     .pure[IO]
+                 )
+          } yield no.run concurrently db.run
         }
         .as(ExitCode.Success)
 
