@@ -1,4 +1,4 @@
-package encry.explorer.core.db.quaries
+package encry.explorer.core.db.queries
 
 import cats.instances.list._
 import doobie.free.connection.ConnectionIO

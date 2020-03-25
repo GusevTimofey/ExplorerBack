@@ -4,7 +4,7 @@ import encry.explorer.core.Id
 import encry.explorer.core.db.algebra.LiftConnectionIO
 import encry.explorer.core.db.algebra.LiftConnectionIO.syntaxConnectionIO._
 import encry.explorer.core.db.models.InputDBModel
-import encry.explorer.core.db.quaries.InputsQueries
+import encry.explorer.core.db.queries.InputsQueries
 
 trait InputRepository[F[_]] {
 

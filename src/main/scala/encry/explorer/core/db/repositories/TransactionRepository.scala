@@ -4,7 +4,7 @@ import encry.explorer.core.Id
 import encry.explorer.core.db.algebra.LiftConnectionIO
 import encry.explorer.core.db.algebra.LiftConnectionIO.syntaxConnectionIO._
 import encry.explorer.core.db.models.TransactionDBModel
-import encry.explorer.core.db.quaries.TransactionsQueries
+import encry.explorer.core.db.queries.TransactionsQueries
 
 trait TransactionRepository[F[_]] {
 

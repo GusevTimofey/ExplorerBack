@@ -1,4 +1,4 @@
-package encry.explorer.core.db.quaries
+package encry.explorer.core.db.queries
 
 import doobie.util.query.Query0
 import encry.explorer.core._

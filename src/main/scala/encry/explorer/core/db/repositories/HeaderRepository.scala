@@ -4,7 +4,7 @@ import encry.explorer.core._
 import encry.explorer.core.db.algebra.LiftConnectionIO
 import encry.explorer.core.db.algebra.LiftConnectionIO.syntaxConnectionIO._
 import encry.explorer.core.db.models.HeaderDBModel
-import encry.explorer.core.db.quaries.HeadersQueries
+import encry.explorer.core.db.queries.HeadersQueries
 
 trait HeaderRepository[F[_]] {
 

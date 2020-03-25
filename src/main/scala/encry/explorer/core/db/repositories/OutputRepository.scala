@@ -3,7 +3,7 @@ package encry.explorer.core.db.repositories
 import encry.explorer.core.db.algebra.LiftConnectionIO
 import encry.explorer.core.db.algebra.LiftConnectionIO.syntaxConnectionIO._
 import encry.explorer.core.db.models.OutputDBModel
-import encry.explorer.core.db.quaries.OutputsQueries
+import encry.explorer.core.db.queries.OutputsQueries
 import encry.explorer.core.{ ContractHash, Id }
 
 trait OutputRepository[F[_]] {
