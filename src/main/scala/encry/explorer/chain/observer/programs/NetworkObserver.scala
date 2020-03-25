@@ -1,6 +1,6 @@
 package encry.explorer.chain.observer.programs
 
-import cats.effect.{ Concurrent, ConcurrentEffect, Sync, Timer }
+import cats.effect.{ ConcurrentEffect, Timer }
 import cats.syntax.applicative._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
@@ -20,16 +20,12 @@ trait NetworkObserver[F[_]] extends RunnableProgram[F] {
 
 object NetworkObserver {
 
-  def apply[F[_]: Sync: Timer: Concurrent: Logger: ConcurrentEffect](
+  def apply[F[_]: Timer: Logger: ConcurrentEffect](
     client: Client[F],
     queue: Queue[F, HttpApiBlock]
   ): NetworkObserver[F] =
     new NetworkObserver[F] {
       override def run: Stream[F, Unit] = Stream.eval(getActualInfo(0))
-//        Stream(()).repeat
-//          .covary[F]
-//          .metered(1.seconds)
-//          .evalMap(_ => queue.dequeue1.void) concurrently
 
       val observerService: F[NodeObserver[F]] =
         for {
