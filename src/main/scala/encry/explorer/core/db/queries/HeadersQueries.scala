@@ -42,8 +42,10 @@ object HeadersQueries extends QueriesFrame {
   def getBestAt(height: HeaderHeight): Query0[HeaderDBModel] =
     sql"""SELECT * FROM $table WHERE height = ${height.value} AND is_in_best_chain = TRUE""".query[HeaderDBModel]
 
-  def insert(header: HeaderDBModel): Update0 =
+  def insert(header: HeaderDBModel): Update0 = {
+    println(fieldsToQuery)
     sql"""INSERT INTO $table ($fieldsToQuery) VALUES ($valuesToQuery) ON CONFLICT DO NOTHING""".update
+  }
 
   def updateBestChainField(id: Id, statement: Boolean): Update0 =
     sql"""UPDATE $table is_in_best_chain = $statement WHERE id = ${id.getValue}""".update

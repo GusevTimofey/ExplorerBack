@@ -15,6 +15,12 @@ trait SettingsReader[F[_]] {
 object SettingsReader {
   def apply[F[_]: Sync]: F[SettingsReader[F]] =
     for {
-      configs <- ConfigSource.default.withFallback(ConfigSource.file("local.conf")).loadF[F, ExplorerSettings]
-    } yield new SettingsReader[F] { override val settings: ExplorerSettings = configs }
+      configs <- ConfigSource
+                  .file(s"${System.getProperty("user.dir")}/src/main/resources/local.conf")
+                  .withFallback(ConfigSource.default)
+                  .loadF[F, ExplorerSettings]
+    } yield {
+      println(configs)
+      new SettingsReader[F] { override val settings: ExplorerSettings = configs }
+    }
 }

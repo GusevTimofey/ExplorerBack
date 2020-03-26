@@ -46,9 +46,11 @@ object DBService {
     )
 
     def hhtpBlockToDBComponents(inputBlock: HttpApiBlock): F[DbComponentsToInsert] = {
-      val dbHeader: HeaderDBModel                  = HeaderDBModel.fromHttpApi(inputBlock)
-      val dbInputs: List[InputDBModel]             = inputBlock.payload.transactions.flatMap(InputDBModel.fromHttpApi)
-      val dbOutputs: List[OutputDBModel]           = inputBlock.payload.transactions.flatMap(OutputDBModel.fromHttpApi)
+      val dbHeader: HeaderDBModel = HeaderDBModel.fromHttpApi(inputBlock)
+      val dbInputs: List[InputDBModel] =
+        inputBlock.payload.transactions.flatMap(tx => InputDBModel.fromHttpApi(tx, inputBlock.header.id))
+      val dbOutputs: List[OutputDBModel] =
+        inputBlock.payload.transactions.flatMap(tx => OutputDBModel.fromHttpApi(tx, inputBlock.header.id))
       val dbTransactions: List[TransactionDBModel] = TransactionDBModel.fromHttpApi(inputBlock)
       DbComponentsToInsert(dbHeader, dbInputs, dbOutputs, dbTransactions).pure[F]
     }

@@ -25,9 +25,10 @@ object DB {
       _ <- Resource.liftF(xt.configure { ds: HikariDataSource =>
             Sync[F].delay {
               ds setAutoCommit false
-              println(s"Milliseconds - db connection: ${30000.milliseconds._1}")
-              ds setIdleTimeout 30.seconds._1
-              ds setConnectionTimeout 120.seconds._1
+              ds setConnectionTimeout 120000
+              ds setMinimumIdle 2
+              ds setIdleTimeout 300000
+              ds setMaxLifetime 600000
               ds setPoolName SR.settings.dbSettings.poolName
               ds setMaximumPoolSize SR.settings.dbSettings.connectionsPoolSize
             }

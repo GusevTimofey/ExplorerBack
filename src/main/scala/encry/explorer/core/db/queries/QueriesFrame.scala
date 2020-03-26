@@ -10,8 +10,8 @@ trait QueriesFrame {
 
   val fields: List[String]
 
-  val fieldsToQuery: String = fields.mkString(", ")
+  def fieldsToQuery: String = fields.mkString(", ")
 
-  val valuesToQuery: String = fields.map(_ => "?").mkString(", ")
+  def valuesToQuery: String = fields.map(_ => "?").mkString(", ")
 
 }

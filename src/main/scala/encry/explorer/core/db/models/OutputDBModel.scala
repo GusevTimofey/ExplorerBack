@@ -11,6 +11,7 @@ import encry.explorer.core._
 
 final case class OutputDBModel(
   id: Id,
+  header_id: Id,
   transactionId: Id,
   outputTypeId: Byte,
   contractHash: ContractHash,
@@ -22,11 +23,12 @@ final case class OutputDBModel(
 )
 
 object OutputDBModel {
-  def fromOutput(txId: Id, output: HttpApiBox): OutputDBModel =
+  def fromOutput(txId: Id, output: HttpApiBox, headerId: Id): OutputDBModel =
     output match {
       case HttpApiAssetBox(outputType, id, proposition, nonce, value, tokenId) =>
         OutputDBModel(
           id,
+          headerId,
           txId,
           outputType.value,
           proposition.contractHash,
@@ -39,6 +41,7 @@ object OutputDBModel {
       case HttpApiDataBox(outputType, id, proposition, nonce, data) =>
         OutputDBModel(
           id,
+          headerId,
           txId,
           outputType.value,
           proposition.contractHash,
@@ -51,6 +54,7 @@ object OutputDBModel {
       case HttpApiTokenIssuingBox(outputType, id, proposition, nonce, amount, tokenId) =>
         OutputDBModel(
           id,
+          headerId,
           txId,
           outputType.value,
           proposition.contractHash,
@@ -62,8 +66,8 @@ object OutputDBModel {
         )
     }
 
-  def fromHttpApi(inputTransaction: HttpApiTransaction): List[OutputDBModel] =
+  def fromHttpApi(inputTransaction: HttpApiTransaction, headerId: Id): List[OutputDBModel] =
     inputTransaction.outputs.map { output =>
-      fromOutput(inputTransaction.id, output)
+      fromOutput(inputTransaction.id, output, headerId)
     }
 }

@@ -36,11 +36,13 @@ CREATE INDEX "transaction_header_id_index" ON TRANSACTIONS (header_id);
 
 CREATE TABLE INPUTS
 (
-    tx_id    VARCHAR(64) REFERENCES TRANSACTIONS (id),
-    box_id   VARCHAR(64),
-    proofs   TEXT NOT NULL,
-    contract TEXT NOT NULL,
-    PRIMARY KEY (tx_id, box_id) /* Composite key is used because the same input may exist in different transactions */
+    tx_id     VARCHAR(64),
+    header_id VARCHAR(64),
+    box_id    VARCHAR(64),
+    proofs    TEXT NOT NULL,
+    contract  TEXT NOT NULL,
+    PRIMARY KEY (tx_id, box_id), /* Composite key is used because the same input may exist in different transactions */
+    FOREIGN KEY (tx_id, header_id) REFERENCES TRANSACTIONS (id, header_id)
 );
 
 CREATE INDEX "input_transaction_id_index" ON INPUTS (tx_id);
@@ -48,14 +50,16 @@ CREATE INDEX "input_transaction_id_index" ON INPUTS (tx_id);
 CREATE TABLE OUTPUTS
 (
     id             VARCHAR(64) PRIMARY KEY,
-    tx_id          VARCHAR(64) REFERENCES TRANSACTIONS (id),
+    header_id      VARCHAR(64),
+    tx_id          VARCHAR(64),
     output_type_id SMALLINT    NOT NULL,
     contract_hash  VARCHAR(64) NOT NULL, /* REFERENCES WALLETS (contract_hash), */
     is_active      BOOLEAN     NOT NULL,
     nonce          BIGINT      NOT NULL,
     amount         BIGINT,
     data           TEXT,
-    token_id       TEXT
+    token_id       TEXT,
+    FOREIGN KEY (tx_id, header_id) REFERENCES TRANSACTIONS (id, header_id)
 );
 
 CREATE INDEX "outputs_tx_id_index" ON OUTPUTS (tx_id);
