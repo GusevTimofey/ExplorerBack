@@ -60,9 +60,9 @@ object DBService {
         httpBlock    <- queue.dequeue1
         dbComponents <- hhtpBlockToDBComponents(httpBlock)
         _            <- headerRepository.insert(dbComponents.dbHeader)
+        _            <- transactionRepository.insertMany(dbComponents.dbTransactions)
         _            <- inputRepository.insertMany(dbComponents.dbInputs)
         _            <- outputRepository.insertMany(dbComponents.dbOutputs)
-        _            <- transactionRepository.insertMany(dbComponents.dbTransactions)
       } yield ()
 
   }

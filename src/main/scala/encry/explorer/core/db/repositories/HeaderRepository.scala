@@ -39,7 +39,7 @@ object HeaderRepository {
 
       override def insert(header: HeaderDBModel): F[Int] = {
         println(HeadersQueries.fieldsToQuery)
-        HeadersQueries.insert(header).run.liftF
+        HeadersQueries.insert(header).liftF
       }
 
       override def updateBestChainField(id: Id, statement: Boolean): F[Int] =

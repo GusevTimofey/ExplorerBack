@@ -1,8 +1,9 @@
 package encry.explorer.core.db.queries
 
+import doobie.free.connection.ConnectionIO
 import doobie.implicits._
 import doobie.util.query.Query0
-import doobie.util.update.Update0
+import doobie.util.update.{ Update, Update0 }
 import encry.explorer.core.db.models.HeaderDBModel
 import encry.explorer.core.{ HeaderHeight, Id }
 //todo This import has to be declared in the scope. Doesn't compile without it. Intellij IDEA bug.
@@ -42,9 +43,9 @@ object HeadersQueries extends QueriesFrame {
   def getBestAt(height: HeaderHeight): Query0[HeaderDBModel] =
     sql"""SELECT * FROM $table WHERE height = ${height.value} AND is_in_best_chain = TRUE""".query[HeaderDBModel]
 
-  def insert(header: HeaderDBModel): Update0 = {
-    println(fieldsToQuery)
-    sql"""INSERT INTO $table ($fieldsToQuery) VALUES ($valuesToQuery) ON CONFLICT DO NOTHING""".update
+  def insert(header: HeaderDBModel): ConnectionIO[Int] = {
+    val sql = s"INSERT INTO $table ($fieldsToQuery) VALUES ($valuesToQuery) ON CONFLICT DO NOTHING"
+    Update[HeaderDBModel](sql).run(header)
   }
 
   def updateBestChainField(id: Id, statement: Boolean): Update0 =

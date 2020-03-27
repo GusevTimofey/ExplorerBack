@@ -16,6 +16,7 @@ object OutputsQueries extends QueriesFrame {
   override val fields: List[String] =
     List(
       "id",
+      "header_id",
       "tx_id",
       "output_type_id",
       "contract_hash",

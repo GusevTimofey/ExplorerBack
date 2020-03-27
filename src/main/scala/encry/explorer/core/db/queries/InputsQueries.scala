@@ -16,6 +16,7 @@ object InputsQueries extends QueriesFrame {
   override val fields: List[String] =
     List(
       "tx_id",
+      "header_id",
       "box_id",
       "proofs",
       "contract"
