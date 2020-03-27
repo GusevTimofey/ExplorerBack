@@ -26,30 +26,29 @@ import encry.explorer.chain.observer.http.api.models.directives.HttpApiDirective
 
 trait NodeObserver[F[_]] {
 
-  def getBestBlockIdAt(height: HeaderHeight): F[Option[String]]
+  def getBestBlockIdAt(height: HeaderHeight, from: UrlAddress): F[Option[String]]
 
-  def getBlockBy(id: Id): F[Option[HttpApiBlock]]
+  def getBlockBy(id: Id, from: UrlAddress): F[Option[HttpApiBlock]]
 
-  def getInfo: F[Option[HttpApiNodeInfo]]
+  def getInfo(from: UrlAddress): F[Option[HttpApiNodeInfo]]
 
-  def getBestFullHeight: F[Option[Int]]
+  def getBestFullHeight(from: UrlAddress): F[Option[Int]]
 
-  def getBestHeadersHeight: F[Option[Int]]
+  def getBestHeadersHeight(from: UrlAddress): F[Option[Int]]
 
-  def getConnectedPeers: F[List[HttpApiPeersInfo]]
+  def getConnectedPeers(from: UrlAddress): F[List[HttpApiPeersInfo]]
 
 }
 
 object NodeObserver {
 
   def apply[F[_]: Sync: Logger: Timer](
-    client: Client[F],
-    url: UrlAddress,
+    client: Client[F]
   ): NodeObserver[F] = new NodeObserver[F] {
 
     private val policy: RetryPolicy[F] = RetryPolicies.limitRetries[F](3)
 
-    override def getBestBlockIdAt(height: HeaderHeight): F[Option[String]] =
+    override def getBestBlockIdAt(height: HeaderHeight, url: UrlAddress): F[Option[String]] =
       retryRequest[Option[String]](
         client
           .expect[List[String]](
@@ -59,40 +58,42 @@ object NodeObserver {
             case Nil       => none[String]
             case head :: _ => head.some
           },
-        s"get best block id at height $height",
+        s"Get best block id at height $height",
         none[String]
       )
 
-    override def getBlockBy(id: Id): F[Option[HttpApiBlock]] =
+    override def getBlockBy(id: Id, url: UrlAddress): F[Option[HttpApiBlock]] =
       retryRequest[Option[HttpApiBlock]](
         client
           .expectOption[HttpApiBlock](getRequest(s"$url/history/$id")),
-        s"get block with id: $id",
+        s"Get block with id: $id",
         none[HttpApiBlock]
       )
 
-    override def getInfo: F[Option[HttpApiNodeInfo]] =
+    override def getInfo(url: UrlAddress): F[Option[HttpApiNodeInfo]] =
       retryRequest[Option[HttpApiNodeInfo]](
         client.expectOption[HttpApiNodeInfo](getRequest(s"$url/info")),
-        "get info",
+        "Get node info",
         none[HttpApiNodeInfo]
       )
-    override def getBestFullHeight: F[Option[Int]] =
-      Functor[F].compose[Option].map(getInfo)(_.bestFullHeaderId)
 
-    override def getBestHeadersHeight: F[Option[Int]] =
-      Functor[F].compose[Option].map(getInfo)(_.bestHeaderId)
+    override def getBestFullHeight(url: UrlAddress): F[Option[Int]] =
+      Functor[F].compose[Option].map(getInfo(url))(_.bestFullHeaderId)
 
-    override def getConnectedPeers: F[List[HttpApiPeersInfo]] =
+    override def getBestHeadersHeight(url: UrlAddress): F[Option[Int]] =
+      Functor[F].compose[Option].map(getInfo(url))(_.bestHeaderId)
+
+    override def getConnectedPeers(url: UrlAddress): F[List[HttpApiPeersInfo]] =
       retryRequest[List[HttpApiPeersInfo]](
         client.expect[List[HttpApiPeersInfo]](getRequest(s"$url/peers/connected")),
-        "get http api peer info",
+        "Get http api peer info",
         List.empty[HttpApiPeersInfo]
       )
 
     private def getRequest(url: String): Request[F] =
       Request[F](Method.GET, Uri.unsafeFromString(url))
 
+    //todo: replace default value with Monoid.empty
     private def retryRequest[Y]: (F[Y], String, Y) => F[Y] =
       (request: F[Y], requestName: String, defaultValue: Y) =>
         request
@@ -107,7 +108,7 @@ object NodeObserver {
           )
           .handleErrorWith { err =>
             Logger[F]
-              .info(s"Error ${err.getMessage} has occurred after handling retry policy for request $requestName.") >>
+              .info(s"Request $request has failed. Err is: ${err.getMessage} Empty value is going to be returned.") >>
               defaultValue.pure[F]
         }
 

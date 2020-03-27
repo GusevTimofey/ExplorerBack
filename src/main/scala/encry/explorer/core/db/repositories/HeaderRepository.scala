@@ -37,10 +37,8 @@ object HeaderRepository {
       override def getBestAt(height: HeaderHeight): F[Option[HeaderDBModel]] =
         HeadersQueries.getBestAt(height).option.liftF
 
-      override def insert(header: HeaderDBModel): F[Int] = {
-        println(HeadersQueries.fieldsToQuery)
+      override def insert(header: HeaderDBModel): F[Int] =
         HeadersQueries.insert(header).liftF
-      }
 
       override def updateBestChainField(id: Id, statement: Boolean): F[Int] =
         HeadersQueries.updateBestChainField(id, statement).run.liftF
