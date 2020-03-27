@@ -28,7 +28,7 @@ import scala.concurrent.ExecutionContext
 object AppMain extends IOApp {
   override def run(args: List[String]): IO[ExitCode] =
     resources.use {
-      case (client, ht) =>
+      case (client, ht, sr) =>
         (for {
           implicit0(logger: SelfAwareStructuredLogger[IO]) <- Slf4jLogger.create[IO]
           implicit0(liftIO: LiftConnectionIO[IO]) <- new LiftConnectionIO[IO] {
@@ -37,7 +37,7 @@ object AppMain extends IOApp {
                                                         liftOp.apply(v)
                                                     }.pure[IO]
           queue <- Queue.bounded[IO, HttpApiBlock](100)
-          no    <- NetworkObserver.apply[IO](client, queue).pure[IO]
+          no    <- NetworkObserver.apply[IO](client, queue, sr).pure[IO]
           db <- DBService
                  .apply[IO](
                    queue,
@@ -51,10 +51,10 @@ object AppMain extends IOApp {
         } yield ()).as(ExitCode.Success)
     }
 
-  def resources: Resource[IO, (Client[IO], HikariTransactor[IO])] =
+  def resources: Resource[IO, (Client[IO], HikariTransactor[IO], SettingsReader[IO])] =
     for {
       client   <- BlazeClientBuilder[IO](ExecutionContext.global).resource
       settings <- Resource.liftF(SettingsReader.apply[IO])
       ht       <- DB.apply(settings)
-    } yield (client, ht)
+    } yield (client, ht, settings)
 }

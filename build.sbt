@@ -11,6 +11,7 @@ val catsEffectsVersion = "2.0.0"
 val http4sVersion      = "0.21.0"
 val circeVersion       = "0.12.3"
 val simulacrumVersion  = "0.19.0"
+val catsRetryVersion   = "1.1.0"
 
 val doobie: Seq[ModuleID] = Seq(
   "org.tpolecat" %% "doobie-core"      % doobieVersion,
@@ -50,6 +51,7 @@ libraryDependencies ++= Seq(
   "org.encry"             %% "encry-common"           % "0.9.3",
   "com.github.mpilquist"  %% "simulacrum"             % simulacrumVersion,
   "eu.timepit"            %% "refined"                % "0.9.13",
+  "com.github.cb372"      %% "cats-retry"             % catsRetryVersion,
   "org.scalatest"         %% "scalatest"              % "3.1.0" % Test
 ) ++ doobie ++ cats ++ http4s ++ circe
 
