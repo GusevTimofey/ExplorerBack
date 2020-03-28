@@ -40,7 +40,7 @@ object GatheredInfoProcessor {
         for {
           idToUrlsOpt <- getAccumulatedBestBlockIdAt(height)
           block <- (for {
-                    (idRaw, urls) <- idToUrlsOpt if urls.nonEmpty
+                    (idRaw, urls) <- idToUrlsOpt
                     id            <- Id.fromString[Try](idRaw).toOption
                   } yield id -> urls) match {
                     case Some((id, rl @ _ :: _)) => tryToRichExpectedElement(observer.getBlockBy(id), rl)
@@ -53,13 +53,13 @@ object GatheredInfoProcessor {
       override def getHeadersHeight: F[Option[Int]] = extractM(getAccumulatedBestChainHeadersHeight)
 
       private def getAccumulatedBestBlockIdAt(height: HeaderHeight): F[Option[(String, List[UrlAddress])]] =
-        requestMany(observer.getBestBlockIdAt(height)).map { computeResult }
+        requestManyPar(observer.getBestBlockIdAt(height)).map { computeResult }
 
       private def getAccumulatedBestChainFullHeight: F[Option[(Int, List[UrlAddress])]] =
-        requestMany(observer.getBestFullHeight).map { computeResult }
+        requestManyPar(observer.getBestFullHeight).map { computeResult }
 
       private def getAccumulatedBestChainHeadersHeight: F[Option[(Int, List[UrlAddress])]] =
-        requestMany(observer.getBestHeadersHeight).map { computeResult }
+        requestManyPar(observer.getBestHeadersHeight).map { computeResult }
 
       private def extractM[J]: F[Option[(J, List[UrlAddress])]] => F[Option[J]] =
         (k: F[Option[(J, List[UrlAddress])]]) =>
@@ -69,7 +69,7 @@ object GatheredInfoProcessor {
               case _       => none[J]
           }
 
-      private def requestMany[R]: (UrlAddress => F[Option[R]]) => F[List[(UrlAddress, R)]] =
+      private def requestManyPar[R]: (UrlAddress => F[Option[R]]) => F[List[(UrlAddress, R)]] =
         (f: UrlAddress => F[Option[R]]) =>
           ref.get.flatMap { _.map(url => f(url).map { _.map { url -> _ } }).parSequence.map { _.flatten } }
 
