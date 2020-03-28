@@ -43,8 +43,8 @@ object GatheredInfoProcessor {
                     (idRaw, urls) <- idToUrlsOpt if urls.nonEmpty
                     id            <- Id.fromString[Try](idRaw).toOption
                   } yield id -> urls) match {
-                    case Some((id, head :: _)) => observer.getBlockBy(id)(head)
-                    case _                     => none[HttpApiBlock].pure[F]
+                    case Some((id, rl @ _ :: _)) => tryToRichExpectedElement(observer.getBlockBy(id), rl)
+                    case _                       => none[HttpApiBlock].pure[F]
                   }
         } yield block
 
@@ -80,6 +80,20 @@ object GatheredInfoProcessor {
             dRes -> urlsRaw.map(_._1)
           }.toOption
 
+      private def tryToRichExpectedElement[U]: (UrlAddress => F[Option[U]], List[UrlAddress]) => F[Option[U]] = {
+        (f: UrlAddress => F[Option[U]], urls: List[UrlAddress]) =>
+          def loop(urls: List[UrlAddress]): F[Option[U]] =
+            urls.headOption match {
+              case Some(url) =>
+                f(url).flatMap {
+                  case Some(potentialElement) => potentialElement.some.pure[F]
+                  case _                      => loop(urls.drop(1))
+                }
+              case None => none[U].pure[F]
+            }
+
+          loop(urls)
+      }
     }
 
 }
