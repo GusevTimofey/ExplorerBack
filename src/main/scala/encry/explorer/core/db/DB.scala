@@ -6,8 +6,6 @@ import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
 import encry.explorer.core.services.SettingsReader
 
-import scala.concurrent.duration._
-
 object DB {
 
   def apply[F[_]: Async: ContextShift](SR: SettingsReader[F]): Resource[F, HikariTransactor[F]] =

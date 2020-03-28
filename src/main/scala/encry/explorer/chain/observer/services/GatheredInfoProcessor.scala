@@ -72,11 +72,8 @@ object GatheredInfoProcessor {
         (f: UrlAddress => F[Option[R]]) =>
           ref.get.flatMap { urls =>
             val toPerform = urls.map(url => f(url).map { _.map { url -> _ } })
-            computeInParallel(toPerform).map { _.flatten }
+            import cats.instances.list._; toPerform.parSequence.map { _.flatten }
         }
-
-      private def computeInParallel[R]: List[F[R]] => F[List[R]] =
-        (f: List[F[R]]) => { import cats.instances.list._; f.parSequence }
 
       private def computeResult[D]: List[(UrlAddress, D)] => Option[(D, List[UrlAddress])] =
         (inputs: List[(UrlAddress, D)]) =>
