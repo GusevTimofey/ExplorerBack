@@ -56,13 +56,6 @@ package object core {
     implicit def meta: Meta[TransactionRoot]       = deriving
     implicit def encoder: Encoder[TransactionRoot] = deriving
     implicit def decoder: Decoder[TransactionRoot] = deriving
-
-//    def fromString[F[_]: Applicative: ApplicativeError[*[_], Throwable]](string: String): F[TransactionRoot] =
-//      refineV[HexStringSpec](string) match {
-//        case Left(err) =>
-//          ApplicativeError[F, Throwable].raiseError(new Throwable(s"Incorrect nested hex if data data cause: $err"))
-//        case Right(value) => TransactionRoot.apply(value).pure[F]
-//      }
   }
 
   @newtype final case class StateRoot(value: String)
@@ -70,13 +63,6 @@ package object core {
     implicit def meta: Meta[StateRoot]       = deriving
     implicit def encoder: Encoder[StateRoot] = deriving
     implicit def decoder: Decoder[StateRoot] = deriving
-
-//    def fromString[F[_]: Applicative: ApplicativeError[*[_], Throwable]](string: String): F[StateRoot] =
-//      refineV[HexStringSpec](string) match {
-//        case Left(err) =>
-//          ApplicativeError[F, Throwable].raiseError(new Throwable(s"Incorrect nested hex if data data cause: $err"))
-//        case Right(value) => StateRoot.apply(value).pure[F]
-//      }
   }
 
   @newtype final case class Version(value: Byte)
