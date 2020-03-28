@@ -29,12 +29,16 @@ object NetworkObserver {
     new NetworkObserver[F] {
       override def run: Stream[F, Unit] = Stream.eval(getActualInfo(0))
 
-      def getActualInfo(initHeight: Int): F[Unit] =
-        (for {
-          block <- gatheredInfoProcessor.getBestBlockAt(HeaderHeight(initHeight))
-          _     <- queue.enqueue1(block.get)
-          _     <- Timer[F].sleep(1.seconds)
-        } yield ()) >> getActualInfo(initHeight + 1)
+      private def getActualInfo(initHeight: Int): F[Unit] =
+        for {
+          blockOpt <- gatheredInfoProcessor.getBestBlockAt(HeaderHeight(initHeight))
+          _ <- blockOpt match {
+                case Some(block) =>
+                  queue.enqueue1(block) >> Timer[F].sleep(0.5.seconds) >> getActualInfo(initHeight + 1)
+                case None =>
+                  Timer[F].sleep(0.5.seconds) >> getActualInfo(initHeight)
+              }
+        } yield ()
 
     }
 
