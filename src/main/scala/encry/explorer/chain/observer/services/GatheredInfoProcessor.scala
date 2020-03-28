@@ -10,6 +10,7 @@ import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.option._
 import cats.syntax.parallel._
+import cats.instances.list._
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
 import encry.explorer.core.{ HeaderHeight, Id, UrlAddress }
 import io.chrisdavenport.log4cats.Logger
@@ -70,10 +71,7 @@ object GatheredInfoProcessor {
 
       private def requestMany[R]: (UrlAddress => F[Option[R]]) => F[List[(UrlAddress, R)]] =
         (f: UrlAddress => F[Option[R]]) =>
-          ref.get.flatMap { urls =>
-            val toPerform = urls.map(url => f(url).map { _.map { url -> _ } })
-            import cats.instances.list._; toPerform.parSequence.map { _.flatten }
-        }
+          ref.get.flatMap { _.map(url => f(url).map { _.map { url -> _ } }).parSequence.map { _.flatten } }
 
       private def computeResult[D]: List[(UrlAddress, D)] => Option[(D, List[UrlAddress])] =
         (inputs: List[(UrlAddress, D)]) =>
