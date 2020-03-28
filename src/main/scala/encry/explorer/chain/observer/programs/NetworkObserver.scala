@@ -1,13 +1,12 @@
 package encry.explorer.chain.observer.programs
 
 import cats.effect.{ ConcurrentEffect, Timer }
-import cats.syntax.applicative._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
-import encry.explorer.chain.observer.services.{ GatheredInfoProcessor, NodeObserver }
+import encry.explorer.chain.observer.services.GatheredInfoProcessor
 import encry.explorer.core.services.SettingsReader
-import encry.explorer.core.{ HeaderHeight, Id, RunnableProgram, UrlAddress }
+import encry.explorer.core.{ HeaderHeight, RunnableProgram }
 import fs2.Stream
 import fs2.concurrent.Queue
 import io.chrisdavenport.log4cats.Logger

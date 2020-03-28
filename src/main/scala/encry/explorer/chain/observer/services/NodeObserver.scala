@@ -22,17 +22,12 @@ import org.http4s.client.Client
 import org.http4s.{ Method, Request, Uri }
 import retry._
 import retry.syntax.all._
-//todo These imports have to be declared in the scope. Doesn't compile without it. Intellij IDEA bug.
-//todo import encry.explorer.chain.observer.http.api.models.boxes.HttpApiBox._
-//todo import encry.explorer.chain.observer.http.api.models.directives.HttpApiDirective._
-import encry.explorer.chain.observer.http.api.models.boxes.HttpApiBox._
-import encry.explorer.chain.observer.http.api.models.directives.HttpApiDirective._
 
 trait NodeObserver[F[_]] {
 
-  def getBestBlockIdAt(height: HeaderHeight, from: UrlAddress): F[Option[String]]
+  def getBestBlockIdAt(height: HeaderHeight)(from: UrlAddress): F[Option[String]]
 
-  def getBlockBy(id: Id, from: UrlAddress): F[Option[HttpApiBlock]]
+  def getBlockBy(id: Id)(from: UrlAddress): F[Option[HttpApiBlock]]
 
   def getInfo(from: UrlAddress): F[Option[HttpApiNodeInfo]]
 
@@ -52,7 +47,7 @@ object NodeObserver {
 
     private val policy: RetryPolicy[F] = RetryPolicies.limitRetries[F](3)
 
-    override def getBestBlockIdAt(height: HeaderHeight, url: UrlAddress): F[Option[String]] =
+    override def getBestBlockIdAt(height: HeaderHeight)(url: UrlAddress): F[Option[String]] =
       retryRequest[Option[String]](
         client
           .expect[List[String]](
@@ -65,7 +60,7 @@ object NodeObserver {
         s"Get best block id at height $height"
       )
 
-    override def getBlockBy(id: Id, url: UrlAddress): F[Option[HttpApiBlock]] =
+    override def getBlockBy(id: Id)(url: UrlAddress): F[Option[HttpApiBlock]] =
       retryRequest[Option[HttpApiBlock]](
         client
           .expectOption[HttpApiBlock](getRequest(s"$url/history/$id")),
