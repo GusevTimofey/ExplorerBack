@@ -2,20 +2,24 @@ package encry.explorer.chain.observer.services
 
 import cats.Functor
 import cats.effect.{ Sync, Timer }
-import cats.syntax.functor._
-import cats.syntax.option._
-import cats.syntax.flatMap._
+import cats.instances.list._
+import cats.instances.option._
+import cats.instances.string._
+import cats.kernel.Monoid
 import cats.syntax.applicative._
 import cats.syntax.applicativeError._
-import cats.instances.option._
+import cats.syntax.flatMap._
+import cats.syntax.functor._
+import cats.syntax.option._
+import encry.explorer.chain.observer.http.api.models.HttpApiBlock.instances._
+import encry.explorer.chain.observer.http.api.models.HttpApiNodeInfo.instances._
 import encry.explorer.chain.observer.http.api.models.{ HttpApiBlock, HttpApiNodeInfo, HttpApiPeersInfo }
-import encry.explorer.core._
-import encry.explorer.core.{ HeaderHeight, Id }
-import org.http4s.client.Client
-import org.http4s.circe.CirceEntityDecoder._
-import org.http4s.{ Method, Request, Uri }
-import io.circe.generic.auto._
+import encry.explorer.core.{ HeaderHeight, Id, _ }
 import io.chrisdavenport.log4cats.Logger
+import io.circe.generic.auto._
+import org.http4s.circe.CirceEntityDecoder._
+import org.http4s.client.Client
+import org.http4s.{ Method, Request, Uri }
 import retry._
 import retry.syntax.all._
 //todo These imports have to be declared in the scope. Doesn't compile without it. Intellij IDEA bug.
@@ -58,23 +62,20 @@ object NodeObserver {
             case Nil       => none[String]
             case head :: _ => head.some
           },
-        s"Get best block id at height $height",
-        none[String]
+        s"Get best block id at height $height"
       )
 
     override def getBlockBy(id: Id, url: UrlAddress): F[Option[HttpApiBlock]] =
       retryRequest[Option[HttpApiBlock]](
         client
           .expectOption[HttpApiBlock](getRequest(s"$url/history/$id")),
-        s"Get block with id: $id",
-        none[HttpApiBlock]
+        s"Get block with id: $id"
       )
 
     override def getInfo(url: UrlAddress): F[Option[HttpApiNodeInfo]] =
       retryRequest[Option[HttpApiNodeInfo]](
         client.expectOption[HttpApiNodeInfo](getRequest(s"$url/info")),
-        "Get node info",
-        none[HttpApiNodeInfo]
+        "Get node info"
       )
 
     override def getBestFullHeight(url: UrlAddress): F[Option[Int]] =
@@ -86,30 +87,27 @@ object NodeObserver {
     override def getConnectedPeers(url: UrlAddress): F[List[HttpApiPeersInfo]] =
       retryRequest[List[HttpApiPeersInfo]](
         client.expect[List[HttpApiPeersInfo]](getRequest(s"$url/peers/connected")),
-        "Get http api peer info",
-        List.empty[HttpApiPeersInfo]
+        "Get http api peer info"
       )
 
     private def getRequest(url: String): Request[F] =
       Request[F](Method.GET, Uri.unsafeFromString(url))
 
-    //todo: replace default value with Monoid.empty
-    private def retryRequest[Y]: (F[Y], String, Y) => F[Y] =
-      (request: F[Y], requestName: String, defaultValue: Y) =>
-        request
-          .retryingOnAllErrors(
-            policy,
-            (err, details: RetryDetails) =>
-              Logger[F].info(
-                s"Failed to perform request: $requestName. " +
-                  s"Retry details are: ${retryDetailsLogMessage(details)}. " +
-                  s"${err.getMessage}."
-            )
+    private def retryRequest[Y: Monoid](request: F[Y], requestName: String): F[Y] =
+      request
+        .retryingOnAllErrors(
+          policy,
+          (err, details: RetryDetails) =>
+            Logger[F].info(
+              s"Failed to perform request: $requestName. " +
+                s"Retry details are: ${retryDetailsLogMessage(details)}. " +
+                s"${err.getMessage}."
           )
-          .handleErrorWith { err =>
-            Logger[F]
-              .info(s"Request $request has failed. Err is: ${err.getMessage} Empty value is going to be returned.") >>
-              defaultValue.pure[F]
+        )
+        .handleErrorWith { err =>
+          Logger[F]
+            .info(s"Request $request has failed. Err is: ${err.getMessage} Empty value is going to be returned.") >>
+            Monoid[Y].empty.pure[F]
         }
 
     private def retryDetailsLogMessage: RetryDetails => String = {

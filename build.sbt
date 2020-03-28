@@ -59,7 +59,8 @@ scalacOptions ++= Seq(
   "-language:postfixOps",
   "-language:higherKinds",
   "-language:implicitConversions",
-  "-Ypartial-unification"
+  "-Ypartial-unification",
+  "-unchecked"
 )
 
 addCompilerPlugin("com.olegpy"      %% "better-monadic-for" % "0.3.1")

@@ -38,13 +38,6 @@ object DBService {
         .metered(1.seconds)
         .evalMap(_ => insert)
 
-    final case class DbComponentsToInsert(
-      dbHeader: HeaderDBModel,
-      dbInputs: List[InputDBModel],
-      dbOutputs: List[OutputDBModel],
-      dbTransactions: List[TransactionDBModel]
-    )
-
     def hhtpBlockToDBComponents(inputBlock: HttpApiBlock): F[DbComponentsToInsert] = {
       val dbHeader: HeaderDBModel = HeaderDBModel.fromHttpApi(inputBlock)
       val dbInputs: List[InputDBModel] =
@@ -66,4 +59,11 @@ object DBService {
       } yield ()
 
   }
+
+  final case class DbComponentsToInsert(
+    dbHeader: HeaderDBModel,
+    dbInputs: List[InputDBModel],
+    dbOutputs: List[OutputDBModel],
+    dbTransactions: List[TransactionDBModel]
+  )
 }
