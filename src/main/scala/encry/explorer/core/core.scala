@@ -16,6 +16,10 @@ import io.circe.refined._
 
 package object core {
 
+  object constants {
+    val RollBackHeight: Int = 100
+  }
+
   object refinedInstances {
 
     type UrlString = String Refined Url
