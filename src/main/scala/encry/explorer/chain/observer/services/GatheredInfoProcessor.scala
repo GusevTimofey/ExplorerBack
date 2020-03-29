@@ -3,6 +3,7 @@ package encry.explorer.chain.observer.services
 import cats.Parallel
 import cats.effect.concurrent.Ref
 import cats.effect.{ Sync, Timer }
+import cats.instances.list._
 import cats.instances.try_._
 import cats.syntax.applicative._
 import cats.syntax.either._
@@ -10,7 +11,6 @@ import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.option._
 import cats.syntax.parallel._
-import cats.instances.list._
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
 import encry.explorer.core.{ HeaderHeight, Id, UrlAddress }
 import io.chrisdavenport.log4cats.Logger
@@ -25,6 +25,8 @@ trait GatheredInfoProcessor[F[_]] {
   def getFullChainHeight: F[Option[Int]]
 
   def getHeadersHeight: F[Option[Int]]
+
+  def getIdsInRollbackRange(startsFrom: Int, rollbackRange: Int): F[List[String]]
 }
 
 object GatheredInfoProcessor {
@@ -52,14 +54,31 @@ object GatheredInfoProcessor {
 
       override def getHeadersHeight: F[Option[Int]] = extractM(getAccumulatedBestChainHeadersHeight)
 
+      def getIdsInRollbackRange(startsFrom: Int, rollbackRange: Int): F[List[String]] =
+        extractM(getIdsFromMany(startsFrom, rollbackRange)).map {
+          case Some(elements) => elements
+          case _              => List.empty[String]
+        }
+
+      private def getIdsFromMany(startsFrom: Int, rollbackRange: Int): F[Option[(List[String], List[UrlAddress])]] =
+        requestManyPar[List, String](observer.getLastIds(rollbackRange, startsFrom)).map {
+          _.collect { case (address, value @ _ :: _) => address -> value }
+        }.map { computeResult }
+
       private def getAccumulatedBestBlockIdAt(height: HeaderHeight): F[Option[(String, List[UrlAddress])]] =
-        requestManyPar(observer.getBestBlockIdAt(height)).map { computeResult }
+        requestManyPar[Option, String](observer.getBestBlockIdAt(height)).map {
+          _.collect { case (address, Some(value)) => address -> value }
+        }.map { computeResult }
 
       private def getAccumulatedBestChainFullHeight: F[Option[(Int, List[UrlAddress])]] =
-        requestManyPar(observer.getBestFullHeight).map { computeResult }
+        requestManyPar[Option, Int](observer.getBestFullHeight).map {
+          _.collect { case (address, Some(value)) => address -> value }
+        }.map { computeResult }
 
       private def getAccumulatedBestChainHeadersHeight: F[Option[(Int, List[UrlAddress])]] =
-        requestManyPar(observer.getBestHeadersHeight).map { computeResult }
+        requestManyPar[Option, Int](observer.getBestHeadersHeight).map {
+          _.collect { case (address, Some(value)) => address -> value }
+        }.map { computeResult }
 
       private def extractM[J]: F[Option[(J, List[UrlAddress])]] => F[Option[J]] =
         (k: F[Option[(J, List[UrlAddress])]]) =>
@@ -69,9 +88,8 @@ object GatheredInfoProcessor {
               case _       => none[J]
           }
 
-      private def requestManyPar[R]: (UrlAddress => F[Option[R]]) => F[List[(UrlAddress, R)]] =
-        (f: UrlAddress => F[Option[R]]) =>
-          ref.get.flatMap { _.map(url => f(url).map { _.map { url -> _ } }).parSequence.map { _.flatten } }
+      private def requestManyPar[T[_], R]: (UrlAddress => F[T[R]]) => F[List[(UrlAddress, T[R])]] =
+        (f: UrlAddress => F[T[R]]) => ref.get.flatMap(_.map(url => f(url).map(url -> _)).parSequence)
 
       private def computeResult[D]: List[(UrlAddress, D)] => Option[(D, List[UrlAddress])] =
         (inputs: List[(UrlAddress, D)]) =>

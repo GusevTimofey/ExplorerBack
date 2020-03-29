@@ -15,7 +15,7 @@ import fs2.Stream
 import fs2.concurrent.Queue
 import io.chrisdavenport.log4cats.Logger
 import org.http4s.client.Client
-
+import encry.explorer.core.constants._
 import scala.concurrent.duration._
 import scala.util.Try
 
@@ -35,7 +35,7 @@ object NetworkObserver {
       ref <- Ref.of[F, List[UrlAddress]](
               SR.httpClientSettings.encryNodes.map(UrlAddress.fromString[Try](_).get)
             )
-      lastRollbackIds       <- Ref.of[F, List[Id]](List.empty[Id])
+      idsInRollbackRange    <- Ref.of[F, List[Id]](List.empty[Id])
       gatheredInfoProcessor <- GatheredInfoProcessor.apply[F](ref, client, nodesObserver).pure[F]
     } yield
       new NetworkObserver[F] {

@@ -37,6 +37,8 @@ trait NodeObserver[F[_]] {
 
   def getConnectedPeers(from: UrlAddress): F[List[HttpApiPeersInfo]]
 
+  def getLastIds(quantity: Int, height: Int)(from: UrlAddress): F[List[String]]
+
 }
 
 object NodeObserver {
@@ -46,6 +48,12 @@ object NodeObserver {
   ): NodeObserver[F] = new NodeObserver[F] {
 
     private val policy: RetryPolicy[F] = RetryPolicies.limitRetries[F](3)
+
+    override def getLastIds(quantity: Int, height: Int)(from: UrlAddress): F[List[String]] =
+      retryRequest[List[String]](
+        client.expect[List[String]](getRequest(s"$from/history?limit=$quantity&offset=${height - quantity}")),
+        s"Get last $quantity ids starts from $height"
+      )
 
     override def getBestBlockIdAt(height: HeaderHeight)(url: UrlAddress): F[Option[String]] =
       retryRequest[Option[String]](
