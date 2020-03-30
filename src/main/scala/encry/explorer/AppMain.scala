@@ -23,7 +23,6 @@ import io.chrisdavenport.log4cats.SelfAwareStructuredLogger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import org.http4s.client.Client
 import org.http4s.client.blaze.BlazeClientBuilder
-
 import scala.concurrent.ExecutionContext
 
 object AppMain extends IOApp {
