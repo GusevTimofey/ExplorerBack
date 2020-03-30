@@ -39,7 +39,6 @@ object AppMain extends IOApp {
                                                     }.pure[IO]
           bestChainBlocks <- Queue.bounded[IO, HttpApiBlock](200)
           forkBlocks      <- Queue.bounded[IO, String](200)
-          no              <- NetworkObserver.apply[IO](client, bestChainBlocks, forkBlocks, sr)
           db <- DBService
                  .apply[IO](
                    bestChainBlocks,
@@ -50,7 +49,9 @@ object AppMain extends IOApp {
                    TransactionRepository.apply[IO]
                  )
                  .pure[IO]
-          _ <- (no.run concurrently db.run).compile.drain
+          dbHeight <- db.getBestHeightFromDB
+          no       <- NetworkObserver.apply[IO](client, bestChainBlocks, forkBlocks, sr, dbHeight)
+          _        <- (no.run concurrently db.run).compile.drain
         } yield ()).as(ExitCode.Success)
     }
 

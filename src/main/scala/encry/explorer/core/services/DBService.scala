@@ -23,6 +23,8 @@ import scala.util.Try
 
 trait DBService[F[_]] extends RunnableProgram[F] {
   def run: Stream[F, Unit]
+
+  def getBestHeightFromDB: F[Int]
 }
 
 object DBService {
@@ -36,6 +38,8 @@ object DBService {
   ): DBService[F] = new DBService[F] {
 
     override def run: Stream[F, Unit] = updateChain() concurrently resolveFork
+
+    override def getBestHeightFromDB: F[Int] = headerRepository.getBestHeight.map(_.getOrElse(0))
 
     private def httpBlockToDBComponents(inputBlock: HttpApiBlock): F[DbComponentsToInsert] = {
       val dbHeader: HeaderDBModel = HeaderDBModel.fromHttpApi(inputBlock)

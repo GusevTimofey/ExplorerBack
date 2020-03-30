@@ -19,6 +19,8 @@ trait HeaderRepository[F[_]] {
   def insert(header: HeaderDBModel): F[Int]
 
   def updateBestChainField(id: Id, statement: Boolean): F[Int]
+
+  def getBestHeight: F[Option[Int]]
 }
 
 object HeaderRepository {
@@ -42,5 +44,8 @@ object HeaderRepository {
 
       override def updateBestChainField(id: Id, statement: Boolean): F[Int] =
         HeadersQueries.updateBestChainField(id, statement).run.liftF
+
+      override def getBestHeight: F[Option[Int]] =
+        HeadersQueries.getBestHeight.option.liftF
     }
 }

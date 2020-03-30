@@ -32,7 +32,8 @@ object NetworkObserver {
     client: Client[F],
     bestChainBlocks: Queue[F, HttpApiBlock],
     forkBlocks: Queue[F, String],
-    SR: ExplorerSettings
+    SR: ExplorerSettings,
+    startWith: Int
   ): F[NetworkObserver[F]] =
     for {
       nodesObserver <- NodeObserver.apply[F](client).pure[F]
@@ -43,7 +44,7 @@ object NetworkObserver {
       gatheredInfoProcessor <- GatheredInfoProcessor.apply[F](ref, client, nodesObserver).pure[F]
     } yield
       new NetworkObserver[F] {
-        override def run: Stream[F, Unit] = Stream.eval(getActualInfo(0))
+        override def run: Stream[F, Unit] = Stream.eval(getActualInfo(startWith))
 
         private def getActualInfo(workingHeight: Int): F[Unit] =
           (for {

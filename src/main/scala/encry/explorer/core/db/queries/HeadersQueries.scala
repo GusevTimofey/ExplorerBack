@@ -51,4 +51,7 @@ object HeadersQueries extends QueriesFrame {
   def updateBestChainField(id: Id, statement: Boolean): Update0 =
     sql"""UPDATE $table is_in_best_chain = $statement WHERE id = ${id.getValue}""".update
 
+  def getBestHeight: Query0[Int] =
+    sql"""SELECT height FROM HEADERS WHERE is_in_best_chain = true ORDER BY height DESC LIMIT 1""".query[Int]
+
 }
