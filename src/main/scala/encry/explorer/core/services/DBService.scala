@@ -1,12 +1,12 @@
 package encry.explorer.core.services
 
-import cats.effect.Timer
+import cats.effect.{ Concurrent, Timer }
+import cats.instances.try_._
 import cats.syntax.applicative._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.{ Applicative, Monad }
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
-import encry.explorer.core.RunnableProgram
 import encry.explorer.core.db.models.{ HeaderDBModel, InputDBModel, OutputDBModel, TransactionDBModel }
 import encry.explorer.core.db.repositories.{
   HeaderRepository,
@@ -14,18 +14,20 @@ import encry.explorer.core.db.repositories.{
   OutputRepository,
   TransactionRepository
 }
+import encry.explorer.core.{ Id, RunnableProgram }
 import fs2.Stream
 import fs2.concurrent.Queue
+import io.chrisdavenport.log4cats.Logger
 
-import scala.concurrent.duration._
+import scala.util.Try
 
 trait DBService[F[_]] extends RunnableProgram[F] {
   def run: Stream[F, Unit]
 }
 
 object DBService {
-  def apply[F[_]: Applicative: Monad: Timer](
-    queue: Queue[F, HttpApiBlock],
+  def apply[F[_]: Applicative: Monad: Timer: Concurrent: Logger](
+    blocksToInsert: Queue[F, HttpApiBlock],
     forkBlocks: Queue[F, String],
     headerRepository: HeaderRepository[F],
     inputRepository: InputRepository[F],
@@ -33,13 +35,9 @@ object DBService {
     transactionRepository: TransactionRepository[F]
   ): DBService[F] = new DBService[F] {
 
-    override def run: Stream[F, Unit] =
-      Stream(()).repeat
-        .covary[F]
-        .metered(1.seconds)
-        .evalMap(_ => insert)
+    override def run: Stream[F, Unit] = updateChain() concurrently resolveFork
 
-    def hhtpBlockToDBComponents(inputBlock: HttpApiBlock): F[DbComponentsToInsert] = {
+    private def httpBlockToDBComponents(inputBlock: HttpApiBlock): F[DbComponentsToInsert] = {
       val dbHeader: HeaderDBModel = HeaderDBModel.fromHttpApi(inputBlock)
       val dbInputs: List[InputDBModel] =
         inputBlock.payload.transactions.flatMap(tx => InputDBModel.fromHttpApi(tx, inputBlock.header.id))
@@ -49,10 +47,19 @@ object DBService {
       DbComponentsToInsert(dbHeader, dbInputs, dbOutputs, dbTransactions).pure[F]
     }
 
-    def insert: F[Unit] =
+    private def updateChain(): Stream[F, Unit] =
+      blocksToInsert.dequeue
+        .evalMap(insertNew)
+        .evalMap(_ => Logger[F].info(s"New block was inserted!"))
+
+    private def resolveFork: Stream[F, Unit] =
+      forkBlocks.dequeue
+        .evalMap(id => headerRepository.updateBestChainField(Id.fromString[Try](id).get, statement = false))
+        .void
+
+    private def insertNew(httpBlock: HttpApiBlock): F[Unit] =
       for {
-        httpBlock    <- queue.dequeue1
-        dbComponents <- hhtpBlockToDBComponents(httpBlock)
+        dbComponents <- httpBlockToDBComponents(httpBlock)
         _            <- headerRepository.insert(dbComponents.dbHeader)
         _            <- transactionRepository.insertMany(dbComponents.dbTransactions)
         _            <- inputRepository.insertMany(dbComponents.dbInputs)
