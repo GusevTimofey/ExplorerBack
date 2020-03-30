@@ -11,12 +11,13 @@ import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.option._
 import cats.syntax.parallel._
+import cats.syntax.traverse._
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
 import encry.explorer.core.{ HeaderHeight, Id, UrlAddress }
 import io.chrisdavenport.log4cats.Logger
 import org.http4s.client.Client
 
-import scala.util.Try
+import scala.util.{ Failure, Success, Try }
 
 trait GatheredInfoProcessor[F[_]] {
 
@@ -27,6 +28,10 @@ trait GatheredInfoProcessor[F[_]] {
   def getHeadersHeight: F[Option[Int]]
 
   def getIdsInRollbackRange(startsFrom: Int, rollbackRange: Int): F[List[String]]
+
+  def getBlockById(id: String): F[Option[HttpApiBlock]]
+
+  def getBlocksByIdsMany(ids: List[String]): F[List[HttpApiBlock]]
 }
 
 object GatheredInfoProcessor {
@@ -37,6 +42,18 @@ object GatheredInfoProcessor {
     observer: NodeObserver[F]
   ): GatheredInfoProcessor[F] =
     new GatheredInfoProcessor[F] {
+
+      override def getBlockById(id: String): F[Option[HttpApiBlock]] =
+        for {
+          urls <- ref.get
+          block <- Id.fromString[Try](id) match {
+                    case Failure(_)     => none[HttpApiBlock].pure[F]
+                    case Success(value) => tryToRichExpectedElement(observer.getBlockBy(value), urls)
+                  }
+        } yield block
+
+      override def getBlocksByIdsMany(ids: List[String]): F[List[HttpApiBlock]] =
+        ids.traverse(getBlockById).map(_.flatten)
 
       override def getBestBlockAt(height: HeaderHeight): F[Option[HttpApiBlock]] =
         for {

@@ -26,6 +26,7 @@ trait DBService[F[_]] extends RunnableProgram[F] {
 object DBService {
   def apply[F[_]: Applicative: Monad: Timer](
     queue: Queue[F, HttpApiBlock],
+    forkBlocks: Queue[F, String],
     headerRepository: HeaderRepository[F],
     inputRepository: InputRepository[F],
     outputRepository: OutputRepository[F],

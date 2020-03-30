@@ -37,11 +37,13 @@ object AppMain extends IOApp {
                                                       override def liftF[T](v: ConnectionIO[T]): IO[T] =
                                                         liftOp.apply(v)
                                                     }.pure[IO]
-          queue <- Queue.bounded[IO, HttpApiBlock](100)
-          no    <- NetworkObserver.apply[IO](client, queue, sr)
+          bestChainBlocks <- Queue.bounded[IO, HttpApiBlock](200)
+          forkBlocks      <- Queue.bounded[IO, String](200)
+          no              <- NetworkObserver.apply[IO](client, bestChainBlocks, forkBlocks, sr)
           db <- DBService
                  .apply[IO](
-                   queue,
+                   bestChainBlocks,
+                   forkBlocks,
                    HeaderRepository.apply[IO],
                    InputRepository.apply[IO],
                    OutputRepository.apply[IO],
