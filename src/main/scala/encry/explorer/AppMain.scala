@@ -50,6 +50,7 @@ object AppMain extends IOApp {
                  )
                  .pure[IO]
           dbHeight <- db.getBestHeightFromDB
+          _        <- logger.info(s"Explorer app has been started. Last height in db is: $dbHeight.")
           no       <- NetworkObserver.apply[IO](client, bestChainBlocks, forkBlocks, sr, dbHeight)
           _        <- (no.run concurrently db.run).compile.drain
         } yield ()).as(ExitCode.Success)
