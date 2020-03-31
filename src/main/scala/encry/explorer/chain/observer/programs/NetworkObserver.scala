@@ -48,11 +48,13 @@ object NetworkObserver {
 
         private def getActualInfo(workingHeight: Int): F[Unit] =
           (for {
-            lastNetworkIds  <- gatheredInfoProcessor.getIdsInRollbackRange(workingHeight, RollBackHeight)
+            lastNetworkIds <- if (workingHeight - RollBackHeight > 0)
+                               gatheredInfoProcessor.getIdsInRollbackRange(workingHeight, RollBackHeight)
+                             else List.empty[String].pure[F]
             explorerLastIds <- idsInRollbackRange.get
             forks           = computeForks(explorerLastIds, lastNetworkIds).toList
             lastHeight <- if (forks.nonEmpty) resolveForks(forks) >> workingHeight.pure[F]
-                          else getNextAvailable(workingHeight)
+                         else getNextAvailable(workingHeight)
           } yield lastHeight)
             .flatMap(h => Timer[F].sleep(0.5.seconds) >> getActualInfo(h))
 

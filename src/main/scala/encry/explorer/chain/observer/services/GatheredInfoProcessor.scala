@@ -78,7 +78,7 @@ object GatheredInfoProcessor {
         }
 
       private def getIdsFromMany(startsFrom: Int, rollbackRange: Int): F[Option[(List[String], List[UrlAddress])]] =
-        requestManyPar[List, String](observer.getLastIds(rollbackRange, startsFrom)).map {
+        requestManyPar[List, String](observer.getLastIds(startsFrom, rollbackRange)).map {
           _.collect { case (address, value @ _ :: _) => address -> value }
         }.map { computeResult }
 

@@ -1,9 +1,12 @@
 package encry.explorer
 
+import java.util.concurrent.{ Executors, ThreadFactory }
+
 import cats.effect.{ ExitCode, IO, IOApp, Resource }
 import cats.syntax.applicative._
 import cats.syntax.functor._
 import cats.~>
+import com.google.common.util.concurrent.ThreadFactoryBuilder
 import doobie.free.connection.ConnectionIO
 import doobie.hikari.HikariTransactor
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
@@ -23,7 +26,8 @@ import io.chrisdavenport.log4cats.SelfAwareStructuredLogger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import org.http4s.client.Client
 import org.http4s.client.blaze.BlazeClientBuilder
-import scala.concurrent.ExecutionContext
+
+import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor }
 
 object AppMain extends IOApp {
   override def run(args: List[String]): IO[ExitCode] =
@@ -49,7 +53,7 @@ object AppMain extends IOApp {
                  )
                  .pure[IO]
           dbHeight <- db.getBestHeightFromDB
-          _        <- logger.info(s"Explorer app has been started. Last height in db is: $dbHeight.")
+          _        <- logger.info(s"Explorer app has been started. Last height in the data base is: $dbHeight.")
           no       <- NetworkObserver.apply[IO](client, bestChainBlocks, forkBlocks, sr, dbHeight)
           _        <- (no.run concurrently db.run).compile.drain
         } yield ()).as(ExitCode.Success)
@@ -57,8 +61,14 @@ object AppMain extends IOApp {
 
   def resources: Resource[IO, (Client[IO], HikariTransactor[IO], ExplorerSettings)] =
     for {
-      client   <- BlazeClientBuilder[IO](ExecutionContext.global).resource
       settings <- Resource.liftF(SettingsReader.read[IO])
-      ht       <- DB.apply[IO](settings)
+      tf: ThreadFactory = new ThreadFactoryBuilder()
+        .setNameFormat("http-api-thread-pool-%d")
+        .setDaemon(false)
+        .setPriority(Thread.NORM_PRIORITY)
+        .build()
+      ec: ExecutionContextExecutor = ExecutionContext.fromExecutor(Executors.newCachedThreadPool(tf))
+      client                       <- BlazeClientBuilder[IO](ec).resource
+      ht                           <- DB[IO](settings)
     } yield (client, ht, settings)
 }

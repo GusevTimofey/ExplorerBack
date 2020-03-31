@@ -37,80 +37,76 @@ trait NodeObserver[F[_]] {
 
   def getConnectedPeers(from: UrlAddress): F[List[HttpApiPeersInfo]]
 
-  def getLastIds(quantity: Int, height: Int)(from: UrlAddress): F[List[String]]
+  def getLastIds(height: Int, quantity: Int)(from: UrlAddress): F[List[String]]
 
 }
 
 object NodeObserver {
 
-  def apply[F[_]: Sync: Logger: Timer](
-    client: Client[F]
-  ): NodeObserver[F] = new NodeObserver[F] {
+  def apply[F[_]: Sync: Logger: Timer](client: Client[F]): NodeObserver[F] = new NodeObserver[F] {
 
-    private val policy: RetryPolicy[F] = RetryPolicies.limitRetries[F](3)
+    private val policy: RetryPolicy[F] = RetryPolicies.limitRetries[F](maxRetries = 3)
 
-    override def getLastIds(quantity: Int, height: Int)(from: UrlAddress): F[List[String]] =
-      retryRequest[List[String]](
-        client.expect[List[String]](getRequest(s"$from/history?limit=$quantity&offset=${height - quantity}")),
-        s"Get last $quantity ids starts from $height"
-      )
+    override def getLastIds(height: Int, quantity: Int)(from: UrlAddress): F[List[String]] = {
+      val request: String = s"$from/history?limit=$quantity&offset=${height - quantity + 1}"
+      retryRequest(client.expect[List[String]](getRequest(request)), requestContent = request)
+    }
 
-    override def getBestBlockIdAt(height: HeaderHeight)(url: UrlAddress): F[Option[String]] =
-      retryRequest[Option[String]](
-        client
-          .expect[List[String]](
-            getRequest(s"$url/history/at/$height")
-          )
-          .map {
-            case Nil       => none[String]
-            case head :: _ => head.some
-          },
-        s"Get best block id at height $height"
-      )
+    override def getBestBlockIdAt(height: HeaderHeight)(url: UrlAddress): F[Option[String]] = {
+      val request: String = s"$url/history/at/$height"
+      retryRequest(client.expect[List[String]](getRequest(request)).map {
+        case Nil       => none[String]
+        case head :: _ => head.some
+      }, requestContent = request)
+    }
 
-    override def getBlockBy(id: Id)(url: UrlAddress): F[Option[HttpApiBlock]] =
-      retryRequest[Option[HttpApiBlock]](
-        client
-          .expectOption[HttpApiBlock](getRequest(s"$url/history/$id")),
-        s"Get block with id: $id"
-      )
+    override def getBlockBy(id: Id)(url: UrlAddress): F[Option[HttpApiBlock]] = {
+      val request: String = s"$url/history/$id"
+      retryRequest(client.expectOption[HttpApiBlock](getRequest(request)), requestContent = request)
+    }
 
-    override def getInfo(url: UrlAddress): F[Option[HttpApiNodeInfo]] =
-      retryRequest[Option[HttpApiNodeInfo]](
-        client.expectOption[HttpApiNodeInfo](getRequest(s"$url/info")),
-        "Get node info"
-      )
+    private def getInfoFrame(url: UrlAddress, requestName: String): F[Option[HttpApiNodeInfo]] = {
+      val request: String = s"$url/info"
+      retryRequest(client.expectOption[HttpApiNodeInfo](getRequest(request)), request + requestName)
+    }
+
+    override def getInfo(url: UrlAddress): F[Option[HttpApiNodeInfo]] = getInfoFrame(url, requestName = "")
 
     override def getBestFullHeight(url: UrlAddress): F[Option[Int]] =
-      Functor[F].compose[Option].map(getInfo(url))(_.bestFullHeaderId)
+      Functor[F]
+        .compose[Option]
+        .map(getInfoFrame(url, requestName = s".extract:BestFullHeight"))(_.bestFullHeaderId)
 
     override def getBestHeadersHeight(url: UrlAddress): F[Option[Int]] =
-      Functor[F].compose[Option].map(getInfo(url))(_.bestHeaderId)
+      Functor[F]
+        .compose[Option]
+        .map(getInfoFrame(url, requestName = s".extract:BestHeadersHeight"))(_.bestHeaderId)
 
-    override def getConnectedPeers(url: UrlAddress): F[List[HttpApiPeersInfo]] =
-      retryRequest[List[HttpApiPeersInfo]](
-        client.expect[List[HttpApiPeersInfo]](getRequest(s"$url/peers/connected")),
-        "Get http api peer info"
-      )
+    override def getConnectedPeers(url: UrlAddress): F[List[HttpApiPeersInfo]] = {
+      val request: String = s"$url/peers/connected"
+      retryRequest(client.expect[List[HttpApiPeersInfo]](getRequest(request)), requestContent = request)
+    }
 
-    private def getRequest(url: String): Request[F] =
-      Request[F](Method.GET, Uri.unsafeFromString(url))
+    private def getRequest(url: String): Request[F] = Request[F](Method.GET, Uri.unsafeFromString(url))
 
-    private def retryRequest[Y: Monoid](request: F[Y], requestName: String): F[Y] =
+    private def retryRequest[M: Monoid](request: F[M], requestContent: String): F[M] =
       request
         .retryingOnAllErrors(
           policy,
           (err, details: RetryDetails) =>
             Logger[F].info(
-              s"Failed to perform request: $requestName. " +
+              s"Failed to perform request: $requestContent. " +
                 s"Retry details are: ${retryDetailsLogMessage(details)}. " +
-                s"${err.getMessage}."
+                s"Request performing failed cause: ${err.getMessage}. " +
+                s"Going to retry this request again."
           )
         )
-        .handleErrorWith { err =>
-          Logger[F]
-            .info(s"Request $request has failed. Err is: ${err.getMessage} Empty value is going to be returned.") >>
-            Monoid[Y].empty.pure[F]
+        .handleErrorWith { err: Throwable =>
+          Logger[F].info(
+            s"Retrying attempts for request $requestContent were finished. " +
+              s"Last error is: ${err.getMessage}. " +
+              s"Going to return empty default value."
+          ) >> Monoid[M].empty.pure[F]
         }
 
     private def retryDetailsLogMessage: RetryDetails => String = {
