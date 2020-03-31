@@ -4,10 +4,10 @@ import cats.Monoid
 
 final case class HttpApiNodeInfo(
   name: String,
-  stateType: Byte,
+  stateType: String,
   difficulty: Int,
-  bestFullHeaderId: Int,
-  bestHeaderId: Int,
+  bestFullHeaderId: String,
+  bestHeaderId: String,
   peersCount: Int,
   unconfirmedCount: Int,
   previousFullHeaderId: String,
@@ -28,10 +28,10 @@ object HttpApiNodeInfo {
       override def empty: HttpApiNodeInfo =
         HttpApiNodeInfo(
           "",
-          -1: Byte,
+          "",
           -1,
-          -1,
-          -1,
+          "",
+          "",
           -1,
           -1,
           "",

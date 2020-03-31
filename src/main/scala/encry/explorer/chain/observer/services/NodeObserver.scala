@@ -78,12 +78,12 @@ object NodeObserver {
     override def getBestFullHeight(url: UrlAddress): F[Option[Int]] =
       Functor[F]
         .compose[Option]
-        .map(getInfoFrame(url, requestName = s".extract:BestFullHeight"))(_.bestFullHeaderId)
+        .map(getInfoFrame(url, requestName = s".extract:BestFullHeight"))(_.fullHeight)
 
     override def getBestHeadersHeight(url: UrlAddress): F[Option[Int]] =
       Functor[F]
         .compose[Option]
-        .map(getInfoFrame(url, requestName = s".extract:BestHeadersHeight"))(_.bestHeaderId)
+        .map(getInfoFrame(url, requestName = s".extract:BestHeadersHeight"))(_.headersHeight)
 
     override def getConnectedPeers(url: UrlAddress): F[List[HttpApiPeersInfo]] = {
       val request: String = s"$url/peers/connected"
