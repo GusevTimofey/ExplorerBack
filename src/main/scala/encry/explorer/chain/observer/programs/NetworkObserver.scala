@@ -1,8 +1,8 @@
 package encry.explorer.chain.observer.programs
 
-import cats.{ ApplicativeError, Parallel }
+import cats.Parallel
 import cats.data.Chain
-import cats.effect.concurrent.Ref
+import cats.effect.concurrent.{ MVar, Ref }
 import cats.effect.{ ConcurrentEffect, Timer }
 import cats.instances.try_._
 import cats.syntax.applicative._
@@ -42,31 +42,78 @@ object NetworkObserver {
             )
       idsInRollbackRange    <- Ref.of[F, List[String]](List.empty[String])
       gatheredInfoProcessor <- GatheredInfoProcessor.apply[F](ref, client, nodesObserver).pure[F]
+      isExplorerSynced      <- MVar.of[F, Boolean](false)
     } yield
       new NetworkObserver[F] {
         override def run: Stream[F, Unit] = Stream.eval(getActualInfo(startWith))
 
         private def getActualInfo(workingHeight: Int): F[Unit] =
           (for {
-            lastNetworkIds <- if (workingHeight - RollBackHeight > 0)
-                               gatheredInfoProcessor.getIdsInRollbackRange(workingHeight, RollBackHeight)
-                             else List.empty[String].pure[F]
-            explorerLastIds <- idsInRollbackRange.get
-            forks           = computeForks(explorerLastIds, lastNetworkIds).toList
-            lastHeight <- if (forks.nonEmpty) resolveForks(forks) >> workingHeight.pure[F]
-                         else getNextAvailable(workingHeight)
-          } yield lastHeight)
-            .flatMap(h => Timer[F].sleep(0.5.seconds) >> getActualInfo(h))
+            bestNetworkHeight <- gatheredInfoProcessor.getFullChainHeight
+            _ <- Logger[F].info(
+                  s"Current network best height is: $bestNetworkHeight. Current explorer height is: $workingHeight."
+                )
+            lastHeight <- if (bestNetworkHeight.exists(_ - RollBackHeight < workingHeight))
+                           Logger[F].info(s"Going to compute potential forks.") >>
+                             tryToResolveForks(workingHeight)
+                         else
+                           Logger[F].info(s"Going to get next block at height $workingHeight.") >>
+                             getNextAvailable(workingHeight)
+            _ <- tryToSetChainAsSynced(bestNetworkHeight, lastHeight)
+          } yield lastHeight).flatMap { explorerHeight =>
+            for {
+              currentChainStatus <- isExplorerSynced.read
+              _ <- if (currentChainStatus)
+                    Logger[F].info(
+                      s"Explorer is synced with network. Going to sleep 10 seconds before next activity."
+                    ) >> Timer[F].sleep(10.seconds) >> getActualInfo(explorerHeight)
+                  else
+                    Logger[F].info(
+                      s"Explorer is not synced with network. Going to sleep 0.3 seconds before next activity."
+                    ) >> Timer[F].sleep(0.3.seconds) >> getActualInfo(explorerHeight)
+            } yield ()
+          }
 
-        private def resolveForks(forks: List[(ExplorerId, NetworkId)])(
-          implicit G: ApplicativeError[F, Throwable]
-        ): F[Unit] =
+        private def tryToSetChainAsSynced(networkHeight: Option[Int], explorerHeight: Int): F[Unit] =
           for {
+            currentStatus <- isExplorerSynced.read
+            _ <- if (!currentStatus && networkHeight.contains(explorerHeight)) isExplorerSynced.put(true)
+                else ().pure[F]
+          } yield ()
+
+        private def tryToResolveForks(workingHeight: Int): F[Int] =
+          for {
+            lastNetworkIds  <- gatheredInfoProcessor.getIdsInRollbackRange(workingHeight, RollBackHeight)
+            _               <- Logger[F].info(s"Last network ids are: ${lastNetworkIds.mkString(",")}.")
+            explorerLastIds <- idsInRollbackRange.get
+            _               <- Logger[F].info(s"Last explorer ids are: ${explorerLastIds.mkString(",")}.")
+            forks           = computeForks(explorerLastIds, lastNetworkIds).toList
+            height <- if (forks.isEmpty)
+                       Logger[F].info(
+                         s"There are no forks in network. Going to get next block at height: $workingHeight"
+                       ) >> getNextAvailable(workingHeight)
+                     else resolveForks(forks) >> workingHeight.pure[F]
+          } yield height
+
+        private def resolveForks(forks: List[(ExplorerId, NetworkId)]): F[Unit] =
+          for {
+            _ <- Logger[F].info(
+                  s"There are some forks in network. They are: ${forks.mkString(",")}. Going to resolve forks."
+                )
             blocks <- gatheredInfoProcessor.getBlocksByIdsMany(forks.map(_._2.value))
-            _ <- if (blocks.size != forks.size) G.raiseError[Unit](new Throwable("Rolled back failed"))
+            _ <- if (blocks.size != forks.size)
+                  Logger[F].info(s"Rolled back failed. Going to sleep 10 seconds before next request.") >>
+                    Timer[F].sleep(10.seconds) >> Logger[F].info(s"Going to continue working after sleeping.")
                 else
                   (bestChainBlocks.enqueue(Stream.emits(blocks)) >>
-                    forkBlocks.enqueue(Stream.emits(forks.map(_._1.value)))).compile.drain
+                    forkBlocks.enqueue(Stream.emits(forks.map(_._1.value)))).compile.drain >>
+                    idsInRollbackRange.update(_.reverse.foldLeft(List.empty[String]) {
+                      case (acc, nextId) =>
+                        forks.find { case (explorerId, _) => explorerId.value == nextId } match {
+                          case Some((_, networkId)) => networkId.value :: acc
+                          case None                 => nextId :: acc
+                        }
+                    })
           } yield ()
 
         private def getNextAvailable(currentHeight: Int): F[Int] =
