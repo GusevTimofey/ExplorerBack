@@ -60,6 +60,7 @@ object NetworkObserver {
                            Logger[F].info(s"Going to get next block at height $workingHeight.") >>
                              getNextAvailable(workingHeight)
             _ <- tryToSetChainAsSynced(bestNetworkHeight, lastHeight)
+            _ <- Logger[F].info(s"Function tryToSetChainAsSynced finished.")
           } yield lastHeight).flatMap { explorerHeight =>
             for {
               currentChainStatus <- isExplorerSynced.read
@@ -77,7 +78,9 @@ object NetworkObserver {
         private def tryToSetChainAsSynced(networkHeight: Option[Int], explorerHeight: Int): F[Unit] =
           for {
             currentStatus <- isExplorerSynced.read
-            _ <- if (!currentStatus && networkHeight.contains(explorerHeight)) isExplorerSynced.put(true)
+            _ <- if (!currentStatus && networkHeight.contains(explorerHeight))
+                  Logger[F].info(s"Explorer is synced with network. Going to set up isSynced param into the true.") >>
+                    isExplorerSynced.put(true)
                 else ().pure[F]
           } yield ()
 
