@@ -44,20 +44,29 @@ object GatheredInfoProcessor {
     new GatheredInfoProcessor[F] {
 
       override def getBlockById(id: String): F[Option[HttpApiBlock]] =
-        for {
+        (for {
           urls <- ref.get
           block <- Id.fromString[Try](id) match {
                     case Failure(_)     => none[HttpApiBlock].pure[F]
                     case Success(value) => tryToRichExpectedElement(observer.getBlockBy(value), urls)
                   }
-        } yield block
+        } yield block).flatTap { block =>
+          Logger[F]
+            .info(s"Request for block with id: $id was finished. Does such a block exist: ${block.isDefined}.")
+        }
 
       override def getBlocksByIdsMany(ids: List[String]): F[List[HttpApiBlock]] =
-        ids.traverse(getBlockById).map(_.flatten)
+        ids
+          .traverse(getBlockById)
+          .map(_.flatten)
+          .flatTap { receivedBlocks =>
+            Logger[F].info(s"Request for ${ids.size} was finished. Received blocks number is: ${receivedBlocks.size}.")
+          }
 
       override def getBestBlockAt(height: HeaderHeight): F[Option[HttpApiBlock]] =
         for {
           idToUrlsOpt <- getAccumulatedBestBlockIdAt(height)
+          _           <- Logger[F].info(s"Best block id at height $height is: ${idToUrlsOpt.map(_._1)}.")
           block <- (for {
                     (idRaw, urls) <- idToUrlsOpt
                     id            <- Id.fromString[Try](idRaw).toOption
@@ -121,10 +130,11 @@ object GatheredInfoProcessor {
             urls.headOption match {
               case Some(url) =>
                 f(url).flatMap {
-                  case Some(potentialElement) => potentialElement.some.pure[F]
-                  case _                      => loop(urls.drop(1))
+                  case Some(potentialElement) =>
+                    Logger[F].info(s"Got expected element from $url") >> potentialElement.some.pure[F]
+                  case _ => Logger[F].info(s"Failed to get required element from $url.") >> loop(urls.drop(1))
                 }
-              case None => none[U].pure[F]
+              case None => Logger[F].info(s"Failed to get required element from the network.") >> none[U].pure[F]
             }
 
           loop(urls)
