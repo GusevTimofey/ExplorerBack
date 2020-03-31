@@ -80,7 +80,7 @@ object NetworkObserver {
             currentStatus <- isExplorerSynced.read
             _ <- if (!currentStatus && networkHeight.contains(explorerHeight))
                   Logger[F].info(s"Explorer is synced with network. Going to set up isSynced param into the true.") >>
-                    isExplorerSynced.put(true)
+                    isExplorerSynced.take >> isExplorerSynced.put(true)
                 else ().pure[F]
           } yield ()
 
