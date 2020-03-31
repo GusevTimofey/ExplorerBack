@@ -48,7 +48,7 @@ object NodeObserver {
 
   def apply[F[_]: Sync: Logger: Timer](client: Client[F]): NodeObserver[F] = new NodeObserver[F] {
 
-    private val policy: RetryPolicy[F] = limitRetries[F](maxRetries = 1) join constantDelay(0.5.seconds)
+    private val policy: RetryPolicy[F] = limitRetries[F](maxRetries = 1) join constantDelay[F](0.5.seconds)
 
     override def getLastIds(height: Int, quantity: Int)(from: UrlAddress): F[List[String]] = {
       val request: String = s"$from/history?limit=$quantity&offset=${height - quantity + 1}"
@@ -104,6 +104,7 @@ object NodeObserver {
                 s"Going to retry this request again."
           )
         )
+        .flatTap(_ => Logger[F].info(s"Request $requestContent finished successfully."))
         .handleErrorWith { err: Throwable =>
           Logger[F].info(
             s"Retrying attempts for request $requestContent were finished. " +
