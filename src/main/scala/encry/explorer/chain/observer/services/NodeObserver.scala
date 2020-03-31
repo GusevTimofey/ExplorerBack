@@ -22,6 +22,9 @@ import org.http4s.client.Client
 import org.http4s.{ Method, Request, Uri }
 import retry._
 import retry.syntax.all._
+import retry.RetryPolicies._
+
+import scala.concurrent.duration._
 
 trait NodeObserver[F[_]] {
 
@@ -45,7 +48,7 @@ object NodeObserver {
 
   def apply[F[_]: Sync: Logger: Timer](client: Client[F]): NodeObserver[F] = new NodeObserver[F] {
 
-    private val policy: RetryPolicy[F] = RetryPolicies.limitRetries[F](maxRetries = 3)
+    private val policy: RetryPolicy[F] = limitRetries[F](maxRetries = 1) join constantDelay(0.5.seconds)
 
     override def getLastIds(height: Int, quantity: Int)(from: UrlAddress): F[List[String]] = {
       val request: String = s"$from/history?limit=$quantity&offset=${height - quantity + 1}"
@@ -111,9 +114,9 @@ object NodeObserver {
 
     private def retryDetailsLogMessage: RetryDetails => String = {
       case RetryDetails.GivingUp(totalRetries, totalDelay) =>
-        s"Going to give up. Total retries number is: $totalRetries. Total delay is: ${totalDelay.toSeconds}s"
+        s"going to give up. Total retries number is: $totalRetries. Total delay is: ${totalDelay.toSeconds}s"
       case RetryDetails.WillDelayAndRetry(nextDelay, _, cumulativeDelay) =>
-        s"Going to perform next request after: ${nextDelay.toSeconds}s. Total delay is: ${cumulativeDelay.toSeconds}s"
+        s"going to perform next request after: ${nextDelay.toSeconds}s. Total delay is: ${cumulativeDelay.toSeconds}s"
     }
   }
 }
