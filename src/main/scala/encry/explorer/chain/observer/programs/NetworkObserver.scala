@@ -142,6 +142,7 @@ object NetworkObserver {
                 changeIsNeeded :+ (ExplorerId(explorerId) -> NetworkId(networkId))
               case (changeIsNeeded, _) => changeIsNeeded
             }
+
       }
 
   @newtype final case class ExplorerId(value: String)
