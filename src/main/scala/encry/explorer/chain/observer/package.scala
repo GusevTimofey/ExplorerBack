@@ -1,5 +1,6 @@
 package encry.explorer.chain
 
+import encry.explorer.core.UrlAddress
 import eu.timepit.refined.types.string.HexString
 import io.circe.{ Decoder, Encoder }
 import io.estatico.newtype.macros.newtype
@@ -25,6 +26,13 @@ package object observer {
   object TypeId {
     implicit def encoder: Encoder[TypeId] = deriving
     implicit def decoder: Decoder[TypeId] = deriving
+  }
+
+  object errors {
+    sealed trait HttpApiErr
+    final case object NoSuchElementErr     extends HttpApiErr
+    final case object AddressIsUnreachable extends HttpApiErr
+    final case object IncorrectNetworkData extends HttpApiErr
   }
 
 }

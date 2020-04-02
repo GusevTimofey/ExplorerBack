@@ -12,6 +12,7 @@ import cats.syntax.functor._
 import cats.syntax.option._
 import cats.syntax.parallel._
 import cats.syntax.traverse._
+import encry.explorer.chain.observer.errors._
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
 import encry.explorer.core.{ HeaderHeight, Id, UrlAddress }
 import io.chrisdavenport.log4cats.Logger
@@ -21,17 +22,17 @@ import scala.util.{ Failure, Success, Try }
 
 trait GatheredInfoProcessor[F[_]] {
 
-  def getBestBlockAt(height: HeaderHeight): F[Option[HttpApiBlock]]
+  def getBlockById(id: String): F[(Option[HttpApiBlock], List[UrlAddress])]
 
-  def getFullChainHeight: F[Option[Int]]
+  def getBestBlockAt(height: HeaderHeight): F[(Option[HttpApiBlock], List[UrlAddress])]
 
-  def getHeadersHeight: F[Option[Int]]
+  def getFullChainHeight: F[(Option[Int], List[UrlAddress])]
 
-  def getIdsInRollbackRange(startsFrom: Int, rollbackRange: Int): F[List[String]]
+  def getHeadersHeight: F[(Option[Int], List[UrlAddress])]
 
-  def getBlockById(id: String): F[Option[HttpApiBlock]]
+  def getIdsInRollbackRange(startsFrom: Int, rollbackRange: Int): F[(List[String], List[UrlAddress])]
 
-  def getBlocksByIdsMany(ids: List[String]): F[List[HttpApiBlock]]
+  def getBlocksByIdsMany(ids: List[String]): F[(List[HttpApiBlock], List[UrlAddress])]
 }
 
 object GatheredInfoProcessor {
@@ -43,79 +44,110 @@ object GatheredInfoProcessor {
   ): GatheredInfoProcessor[F] =
     new GatheredInfoProcessor[F] {
 
-      override def getBlockById(id: String): F[Option[HttpApiBlock]] =
+      override def getBlockById(id: String): F[(Option[HttpApiBlock], List[UrlAddress])] =
         (for {
           urls <- ref.get
           block <- Id.fromString[Try](id) match {
-                    case Failure(_)     => none[HttpApiBlock].pure[F]
-                    case Success(value) => tryToRichExpectedElement(observer.getBlockBy(value), urls)
+                    case Failure(_)     => (none[HttpApiBlock] -> List.empty[UrlAddress]).pure[F]
+                    case Success(value) => tryToRichExpectedElement[HttpApiBlock](observer.getBlockBy(value), urls)
                   }
-        } yield block).flatTap { block =>
-          Logger[F]
-            .info(s"Request for block with id: $id was finished. Does such a block exist: ${block.isDefined}.")
+        } yield block).flatTap {
+          case (block, urls) =>
+            Logger[F].info(
+              s"Request for block with id: $id was finished. " +
+                s"Does such a block exist: ${block.isDefined}. " +
+                s"Inconsistent urls are: ${urls.mkString(",")}."
+            )
         }
 
-      override def getBlocksByIdsMany(ids: List[String]): F[List[HttpApiBlock]] =
-        ids
-          .traverse(getBlockById)
-          .map(_.flatten)
-          .flatTap { receivedBlocks =>
-            Logger[F].info(s"Request for ${ids.size} was finished. Received blocks number is: ${receivedBlocks.size}.")
-          }
-
-      override def getBestBlockAt(height: HeaderHeight): F[Option[HttpApiBlock]] =
+      override def getBestBlockAt(height: HeaderHeight): F[(Option[HttpApiBlock], List[UrlAddress])] =
         for {
-          idToUrlsOpt <- getAccumulatedBestBlockIdAt(height)
-          _           <- Logger[F].info(s"Best block id at height $height is: ${idToUrlsOpt.map(_._1)}.")
-          block <- (for {
+          (badUrl, idToUrlsOpt) <- getAccumulatedBestBlockIdAt(height)
+          _                     <- Logger[F].info(s"Best block id at height $height is: ${idToUrlsOpt.map(_._1)}.")
+          (block, moreBadUrls) <- (for {
                     (idRaw, urls) <- idToUrlsOpt
                     id            <- Id.fromString[Try](idRaw).toOption
                   } yield id -> urls) match {
                     case Some((id, rl @ _ :: _)) => tryToRichExpectedElement(observer.getBlockBy(id), rl)
-                    case _                       => none[HttpApiBlock].pure[F]
+                    case _                       => (none[HttpApiBlock] -> List.empty[UrlAddress]).pure[F]
                   }
-        } yield block
+        } yield block -> (badUrl ::: moreBadUrls).distinct
 
-      override def getFullChainHeight: F[Option[Int]] = extractM(getAccumulatedBestChainFullHeight)
-
-      override def getHeadersHeight: F[Option[Int]] = extractM(getAccumulatedBestChainHeadersHeight)
-
-      def getIdsInRollbackRange(startsFrom: Int, rollbackRange: Int): F[List[String]] =
-        extractM(getIdsFromMany(startsFrom, rollbackRange)).map {
-          case Some(elements) => elements
-          case _              => List.empty[String]
-        }
-
-      private def getIdsFromMany(startsFrom: Int, rollbackRange: Int): F[Option[(List[String], List[UrlAddress])]] =
-        requestManyPar[List, String](observer.getLastIds(startsFrom, rollbackRange)).map {
-          _.collect { case (address, value @ _ :: _) => address -> value }
-        }.map { computeResult }
-
-      private def getAccumulatedBestBlockIdAt(height: HeaderHeight): F[Option[(String, List[UrlAddress])]] =
-        requestManyPar[Option, String](observer.getBestBlockIdAt(height)).map {
-          _.collect { case (address, Some(value)) => address -> value }
-        }.map { computeResult }
-
-      private def getAccumulatedBestChainFullHeight: F[Option[(Int, List[UrlAddress])]] =
-        requestManyPar[Option, Int](observer.getBestFullHeight).map {
-          _.collect { case (address, Some(value)) => address -> value }
-        }.map { computeResult }
-
-      private def getAccumulatedBestChainHeadersHeight: F[Option[(Int, List[UrlAddress])]] =
-        requestManyPar[Option, Int](observer.getBestHeadersHeight).map {
-          _.collect { case (address, Some(value)) => address -> value }
-        }.map { computeResult }
-
-      private def extractM[J]: F[Option[(J, List[UrlAddress])]] => F[Option[J]] =
-        (k: F[Option[(J, List[UrlAddress])]]) =>
-          for { kToV <- k } yield
-            (for { (k, _) <- kToV } yield k) match {
-              case Some(u) => u.some
-              case _       => none[J]
+      override def getBlocksByIdsMany(ids: List[String]): F[(List[HttpApiBlock], List[UrlAddress])] =
+        ids
+          .traverse(getBlockById)
+          .map { receivedResponses =>
+            @scala.annotation.tailrec
+            def loop(
+              badUrls: Set[UrlAddress],
+              acc: List[HttpApiBlock],
+              input: List[(Option[HttpApiBlock], List[UrlAddress])]
+            ): (List[HttpApiBlock], List[UrlAddress]) = input.headOption match {
+              case Some((Some(response), urls)) => loop(badUrls ++ urls.toSet, response :: acc, input.drop(1))
+              case Some((_, urls))              => loop(badUrls ++ urls.toSet, acc, input.drop(1))
+              case None                         => acc -> badUrls.toList
+            }
+            loop(Set.empty, List.empty, receivedResponses)
+          }
+          .flatTap {
+            case (receivedBlocks, _) =>
+              Logger[F].info(
+                s"Request for ${ids.size} was finished. Received blocks number is: ${receivedBlocks.size}."
+              )
           }
 
-      private def requestManyPar[T[_], R]: (UrlAddress => F[T[R]]) => F[List[(UrlAddress, T[R])]] =
-        (f: UrlAddress => F[T[R]]) => ref.get.flatMap(_.map(url => f(url).map(url -> _)).parSequence)
+      override def getFullChainHeight: F[(Option[Int], List[UrlAddress])] =
+        getAccumulatedBestChainFullHeight.map { case (addresses, maybeTuple) => extractM(maybeTuple) -> addresses }
+
+      override def getHeadersHeight: F[(Option[Int], List[UrlAddress])] =
+        getAccumulatedBestChainHeadersHeight.map { case (addresses, maybeTuple) => extractM(maybeTuple) -> addresses }
+
+      override def getIdsInRollbackRange(startsFrom: Int, rollbackRange: Int): F[(List[String], List[UrlAddress])] =
+        getIdsFromMany(startsFrom, rollbackRange).map {
+          case (addresses, maybeTuple) =>
+            (extractM(maybeTuple) match {
+              case Some(elements) => elements
+              case _              => List.empty[String]
+            }) -> addresses
+        }
+
+      private def getIdsFromMany(
+        startsFrom: Int,
+        rollbackRange: Int
+      ): F[(List[UrlAddress], Option[(List[String], List[UrlAddress])])] =
+        handleResponses(requestManyPar(observer.getLastIds(startsFrom, rollbackRange)))
+
+      private def getAccumulatedBestBlockIdAt(
+        height: HeaderHeight
+      ): F[(List[UrlAddress], Option[(String, List[UrlAddress])])] =
+        handleResponses(requestManyPar(observer.getBestBlockIdAt(height)))
+
+      private def getAccumulatedBestChainFullHeight: F[(List[UrlAddress], Option[(Int, List[UrlAddress])])] =
+        handleResponses(requestManyPar(observer.getBestFullHeight))
+
+      private def getAccumulatedBestChainHeadersHeight: F[(List[UrlAddress], Option[(Int, List[UrlAddress])])] =
+        handleResponses(requestManyPar(observer.getBestHeadersHeight))
+
+      private def handleResponses[R](
+        i: F[List[(UrlAddress, Either[HttpApiErr, R])]]
+      ): F[(List[UrlAddress], Option[(R, List[UrlAddress])])] =
+        i.map { filterResponses }.map { case (errUrl, fr) => errUrl -> computeResult(fr) }
+
+      private def filterResponses[R](
+        elems: List[(UrlAddress, Either[HttpApiErr, R])]
+      ): (List[UrlAddress], List[(UrlAddress, R)]) =
+        elems.foldLeft(List.empty[UrlAddress], List.empty[(UrlAddress, R)]) {
+          case ((badUrls, responses), (url, Right(response)))      => badUrls          -> ((url -> response) :: responses)
+          case ((badUrls, responses), (_, Left(NoSuchElementErr))) => badUrls          -> responses
+          case ((badUrls, responses), (url, _))                    => (url :: badUrls) -> responses
+        }
+
+      private def extractM[J]: Option[(J, List[UrlAddress])] => Option[J] =
+        (k: Option[(J, List[UrlAddress])]) =>
+          (for { (r, _) <- k } yield r) match {
+            case Some(u) => u.some
+            case _       => none[J]
+        }
 
       private def computeResult[D]: List[(UrlAddress, D)] => Option[(D, List[UrlAddress])] =
         (inputs: List[(UrlAddress, D)]) =>
@@ -124,20 +156,33 @@ object GatheredInfoProcessor {
             dRes -> urlsRaw.map(_._1)
           }.toOption
 
-      private def tryToRichExpectedElement[U]: (UrlAddress => F[Option[U]], List[UrlAddress]) => F[Option[U]] = {
-        (f: UrlAddress => F[Option[U]], urls: List[UrlAddress]) =>
-          def loop(urls: List[UrlAddress]): F[Option[U]] =
-            urls.headOption match {
-              case Some(url) =>
-                f(url).flatMap {
-                  case Some(potentialElement) =>
-                    Logger[F].info(s"Got expected element from $url") >> potentialElement.some.pure[F]
-                  case _ => Logger[F].info(s"Failed to get required element from $url.") >> loop(urls.drop(1))
-                }
-              case None => Logger[F].info(s"Failed to get required element from the network.") >> none[U].pure[F]
-            }
+      private def requestManyPar[R](
+        f: UrlAddress => F[Either[HttpApiErr, R]]
+      ): F[List[(UrlAddress, Either[HttpApiErr, R])]] =
+        ref.get.flatMap(_.map(url => f(url).map(url -> _)).parSequence)
 
-          loop(urls)
+      private def tryToRichExpectedElement[U](
+        f: UrlAddress => F[Either[HttpApiErr, U]],
+        urls: List[UrlAddress]
+      ): F[(Option[U], List[UrlAddress])] = {
+        def loop(urls: List[UrlAddress], inconsistentUrls: List[UrlAddress]): F[(Option[U], List[UrlAddress])] =
+          urls.headOption match {
+            case Some(url) =>
+              f(url).flatMap {
+                case Right(potentialElement) =>
+                  Logger[F].info(s"Got expected element from $url").map(_ => potentialElement.some -> inconsistentUrls)
+                case Left(NoSuchElementErr) =>
+                  Logger[F].info(s"Got the empty element from $url.") >> loop(urls.drop(1), inconsistentUrls)
+                case _ =>
+                  Logger[F]
+                    .info(s"Failed to setup connection with $url.")
+                    .flatMap(_ => loop(urls.drop(1), url :: inconsistentUrls))
+              }
+            case None =>
+              Logger[F].info(s"Failed to get required element from the network.").map(_ => none -> inconsistentUrls)
+          }
+
+        loop(urls, List.empty)
       }
     }
 

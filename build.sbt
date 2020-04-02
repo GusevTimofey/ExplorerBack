@@ -60,7 +60,10 @@ scalacOptions ++= Seq(
   "-language:higherKinds",
   "-language:implicitConversions",
   "-Ypartial-unification",
-  "-unchecked"
+  "-Xfatal-warnings",
+  "-unchecked",
+  "-feature",
+  "-deprecation"
 )
 
 addCompilerPlugin("com.olegpy"      %% "better-monadic-for" % "0.3.1")

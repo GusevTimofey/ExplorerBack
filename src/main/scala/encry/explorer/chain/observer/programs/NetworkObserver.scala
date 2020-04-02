@@ -49,7 +49,7 @@ object NetworkObserver {
 
         private def getActualInfo(workingHeight: Int): F[Unit] =
           (for {
-            bestNetworkHeight <- gatheredInfoProcessor.getFullChainHeight
+            (bestNetworkHeight, badUrls) <- gatheredInfoProcessor.getFullChainHeight
             _ <- Logger[F].info(
                   s"Current network best height is: $bestNetworkHeight. Current explorer height is: $workingHeight."
                 )
@@ -86,11 +86,11 @@ object NetworkObserver {
 
         private def tryToResolveForks(workingHeight: Int): F[Int] =
           for {
-            lastNetworkIds  <- gatheredInfoProcessor.getIdsInRollbackRange(workingHeight, RollBackHeight)
-            _               <- Logger[F].info(s"Last network ids are: ${lastNetworkIds.mkString(",")}.")
-            explorerLastIds <- idsInRollbackRange.get
-            _               <- Logger[F].info(s"Last explorer ids are: ${explorerLastIds.mkString(",")}.")
-            forks           = computeForks(explorerLastIds, lastNetworkIds).toList
+            (lastNetworkIds, badUrls) <- gatheredInfoProcessor.getIdsInRollbackRange(workingHeight, RollBackHeight)
+            _                         <- Logger[F].info(s"Last network ids are: ${lastNetworkIds.mkString(",")}.")
+            explorerLastIds           <- idsInRollbackRange.get
+            _                         <- Logger[F].info(s"Last explorer ids are: ${explorerLastIds.mkString(",")}.")
+            forks                     = computeForks(explorerLastIds, lastNetworkIds).toList
             height <- if (forks.isEmpty)
                        Logger[F].info(
                          s"There are no forks in network. Going to get next block at height: $workingHeight"
@@ -103,7 +103,7 @@ object NetworkObserver {
             _ <- Logger[F].info(
                   s"There are some forks in network. They are: ${forks.mkString(",")}. Going to resolve forks."
                 )
-            blocks <- gatheredInfoProcessor.getBlocksByIdsMany(forks.map(_._2.value))
+            (blocks, badUrls) <- gatheredInfoProcessor.getBlocksByIdsMany(forks.map(_._2.value))
             _ <- if (blocks.size != forks.size)
                   Logger[F].info(s"Rolled back failed. Going to sleep 10 seconds before next request.") >>
                     Timer[F].sleep(10.seconds) >> Logger[F].info(s"Going to continue working after sleeping.")
@@ -121,7 +121,7 @@ object NetworkObserver {
 
         private def getNextAvailable(currentHeight: Int): F[Int] =
           for {
-            blockOpt <- gatheredInfoProcessor.getBestBlockAt(HeaderHeight(currentHeight))
+            (blockOpt, badUrls) <- gatheredInfoProcessor.getBestBlockAt(HeaderHeight(currentHeight))
             newHeight <- blockOpt match {
                           case Some(block) =>
                             bestChainBlocks.enqueue1(block) >>
