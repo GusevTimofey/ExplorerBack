@@ -30,9 +30,8 @@ package object observer {
 
   object errors {
     sealed trait HttpApiErr
-    final case object NoSuchElementErr     extends HttpApiErr
-    final case object AddressIsUnreachable extends HttpApiErr
-    final case object IncorrectNetworkData extends HttpApiErr
+    final case object NoSuchElementErr                     extends HttpApiErr
+    final case class AddressIsUnreachable(url: UrlAddress) extends HttpApiErr
   }
 
 }

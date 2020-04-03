@@ -21,6 +21,8 @@ trait HeaderRepository[F[_]] {
   def updateBestChainField(id: Id, statement: Boolean): F[Int]
 
   def getBestHeight: F[Option[Int]]
+
+  def getLast(quantity: Int): F[List[Id]]
 }
 
 object HeaderRepository {
@@ -47,5 +49,8 @@ object HeaderRepository {
 
       override def getBestHeight: F[Option[Int]] =
         HeadersQueries.getBestHeight.option.liftF
+
+      override def getLast(quantity: Int): F[List[Id]] =
+        HeadersQueries.getLast(quantity).to[List].liftF
     }
 }

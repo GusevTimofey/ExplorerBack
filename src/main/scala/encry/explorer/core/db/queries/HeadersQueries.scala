@@ -54,4 +54,7 @@ object HeadersQueries extends QueriesFrame {
   def getBestHeight: Query0[Int] =
     sql"""SELECT height FROM HEADERS WHERE is_in_best_chain = true ORDER BY height DESC LIMIT 1""".query[Int]
 
+  def getLast(quantity: Int): Query0[Id] =
+    sql"""SELECT * FROM HEADERS WHERE is_in_best_chain = true ORDER BY height DESC LIMIT $quantity""".query[Id]
+
 }

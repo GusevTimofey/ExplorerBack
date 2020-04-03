@@ -10,7 +10,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder
 import doobie.free.connection.ConnectionIO
 import doobie.hikari.HikariTransactor
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
-import encry.explorer.chain.observer.programs.NetworkObserver
+import encry.explorer.chain.observer.programs.ObserverProgram
 import encry.explorer.core.db.DB
 import encry.explorer.core.db.algebra.LiftConnectionIO
 import encry.explorer.core.db.repositories.{
@@ -19,7 +19,7 @@ import encry.explorer.core.db.repositories.{
   OutputRepository,
   TransactionRepository
 }
-import encry.explorer.core.services.{ DBService, SettingsReader }
+import encry.explorer.core.services.{ DBReaderService, DBService, SettingsReader }
 import encry.explorer.core.settings.ExplorerSettings
 import fs2.concurrent.Queue
 import io.chrisdavenport.log4cats.SelfAwareStructuredLogger
@@ -42,11 +42,13 @@ object AppMain extends IOApp {
                                                     }.pure[IO]
           bestChainBlocks <- Queue.bounded[IO, HttpApiBlock](200)
           forkBlocks      <- Queue.bounded[IO, String](200)
+          headerRepo      = HeaderRepository.apply[IO]
+          dbReader        = DBReaderService(headerRepo)
           db <- DBService
                  .apply[IO](
                    bestChainBlocks,
                    forkBlocks,
-                   HeaderRepository.apply[IO],
+                   headerRepo,
                    InputRepository.apply[IO],
                    OutputRepository.apply[IO],
                    TransactionRepository.apply[IO]
@@ -54,8 +56,8 @@ object AppMain extends IOApp {
                  .pure[IO]
           dbHeight <- db.getBestHeightFromDB
           _        <- logger.info(s"Explorer app has been started. Last height in the data base is: $dbHeight.")
-          no       <- NetworkObserver.apply[IO](client, bestChainBlocks, forkBlocks, sr, dbHeight)
-          _        <- (no.run concurrently db.run).compile.drain
+          op       <- ObserverProgram(client, dbReader, forkBlocks, bestChainBlocks, dbHeight, sr)
+          _        <- (op.run concurrently db.run).compile.drain
         } yield ()).as(ExitCode.Success)
     }
 
