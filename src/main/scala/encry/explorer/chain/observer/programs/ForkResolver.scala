@@ -8,6 +8,7 @@ import cats.syntax.either._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.{ Applicative, Monad }
+import encry.explorer.chain.observer.errors.HttpApiErr
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
 import encry.explorer.chain.observer.services.{ ClientService, GatheringService, UrlsManagerService }
 import encry.explorer.core.UrlAddress
@@ -56,9 +57,12 @@ object ForkResolver {
 
     private def resolveForks(forks: List[(ExplorerId, NetworkId)], urlsForRequest: List[UrlAddress]): F[Unit] =
       for {
-        blocks <- gatheringService.gatherMany(forks.map(ids => clientService.getBlockBy(ids._2.value)), urlsForRequest)
-        _      <- blocksToResolve.enqueue(Stream.emits(blocks)).compile.drain
-        _      <- blocksMarkAsNonBest.enqueue(Stream.emits(forks.map(_._1.value))).compile.drain
+        blocks <- gatheringService.gatherMany(forks.map { ids =>
+                   val f: UrlAddress => F[Either[HttpApiErr, HttpApiBlock]] = clientService.getBlockBy(ids._2.value)
+                   f
+                 }, urlsForRequest)
+        _ <- blocksToResolve.enqueue(Stream.emits(blocks)).compile.drain
+        _ <- blocksMarkAsNonBest.enqueue(Stream.emits(forks.map(_._1.value))).compile.drain
       } yield ()
 
     private def computeMostFrequent[R](list: List[(UrlAddress, R)]): Option[(R, List[UrlAddress])] =

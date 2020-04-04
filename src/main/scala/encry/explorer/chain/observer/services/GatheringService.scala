@@ -43,7 +43,7 @@ object GatheringService {
       urls: List[UrlAddress]
     ): F[List[(UrlAddress, R)]] =
       urls
-        .map(request)
+        .map(url => request(url).map(url -> _))
         .parSequence
         .map(filterResponses)
         .flatMap {
@@ -68,11 +68,13 @@ object GatheringService {
       urls: List[UrlAddress]
     ): F[List[R]] = requests.map(gatherFirst(_, urls)).parSequence.map(_.flatten)
 
-    private def filterResponses[R](elems: List[Either[HttpApiErr, R]]): (List[UrlAddress], List[(UrlAddress, R)]) =
+    private def filterResponses[R](
+      elems: List[(UrlAddress, Either[HttpApiErr, R])]
+    ): (List[UrlAddress], List[(UrlAddress, R)]) =
       elems.foldLeft(List.empty[UrlAddress], List.empty[(UrlAddress, R)]) {
-        case ((unreachableUrls, r), Right(next))                         => unreachableUrls -> (next :: r)
-        case (sl, Left(NoSuchElementErr))                                => sl
-        case ((unreachableUrls, r), Left(AddressIsUnreachable(address))) => (address :: unreachableUrls) -> r
+        case ((unreachableUrls, r), (url, Right(next)))                => unreachableUrls -> ((url -> next) :: r)
+        case (sl, (_, Left(NoSuchElementErr)))                         => sl
+        case ((unreachableUrls, r), (url, Left(AddressIsUnreachable))) => (url :: unreachableUrls) -> r
       }
 
     private def tryToRichExpectedElement[R](

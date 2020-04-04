@@ -9,6 +9,7 @@ import encry.explorer.chain.observer.errors.{ AddressIsUnreachable, HttpApiErr, 
 import encry.explorer.chain.observer.http.api.models.{ HttpApiBlock, HttpApiNodeInfo, HttpApiPeersInfo }
 import encry.explorer.core.UrlAddress
 import io.chrisdavenport.log4cats.Logger
+import io.circe._
 import io.circe.generic.auto._
 import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.client.Client
@@ -56,6 +57,7 @@ object ClientService {
       getBlockIdsAt(height)(from).map {
         case Left(err)        => err.asLeft[String]
         case Right(head :: _) => head.asRight[HttpApiErr]
+        case _                => NoSuchElementErr.asLeft[String]
       }
 
     override def getBlockBy(id: String)(from: UrlAddress): F[Either[HttpApiErr, HttpApiBlock]] =
@@ -72,7 +74,7 @@ object ClientService {
     override def getBestHeadersHeight(from: UrlAddress): F[Either[HttpApiErr, Int]] =
       getInfoFrame(from, optionalInfo = s"extract/headersHeight").map { _.map { _.headersHeight } }
 
-    private def doRequestOfList[R](request: String, from: UrlAddress): F[Either[HttpApiErr, List[R]]] =
+    private def doRequestOfList[R: Decoder](request: String, from: UrlAddress): F[Either[HttpApiErr, List[R]]] =
       retryRequest(
         client.expect[List[R]](getRequest(request)).map {
           case Nil  => NoSuchElementErr.asLeft[List[R]]
@@ -82,7 +84,7 @@ object ClientService {
         from
       )
 
-    private def doRequestOfOption[R](
+    private def doRequestOfOption[R: Decoder](
       request: String,
       from: UrlAddress,
       optionalRequestInfo: String = ""
@@ -115,7 +117,7 @@ object ClientService {
         .handleErrorWith { err: Throwable =>
           Logger[F]
             .info(s"Retrying attempts for request $requestContent have ended. Last error is: ${err.getMessage}.")
-            .map(_ => AddressIsUnreachable(urlAddress).asLeft[M])
+            .map(_ => AddressIsUnreachable.asLeft[M])
         }
 
     private def retryDetailsLogMessage: RetryDetails => String = {
