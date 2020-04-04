@@ -2,15 +2,15 @@ package encry.explorer.chain.observer.programs
 
 import cats.Parallel
 import cats.effect.concurrent.Ref
-import cats.effect.{Concurrent, Sync, Timer}
+import cats.effect.{ Concurrent, Sync, Timer }
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
-import encry.explorer.chain.observer.services.UrlsManagerService.UrlCurrentState
-import encry.explorer.chain.observer.services.{ClientService, GatheringService, UrlsManagerService}
+import encry.explorer.chain.observer.programs.UrlsManager.UrlCurrentState
+import encry.explorer.chain.observer.services.{ ClientService, GatheringService }
 import encry.explorer.core.services.DBReaderService
 import encry.explorer.core.settings.ExplorerSettings
-import encry.explorer.core.{RunnableProgram, UrlAddress}
+import encry.explorer.core.{ RunnableProgram, UrlAddress }
 import fs2.Stream
 import fs2.concurrent.Queue
 import io.chrisdavenport.log4cats.Logger
@@ -35,12 +35,13 @@ object ObserverProgram {
       isChainSyncedRef             <- Ref.of[F, Boolean](false)
       clientService                = ClientService(client)
       gatheringService             = GatheringService(clientService, incomingUnreachableUrlsQueue)
-      urlsManagerService           <- UrlsManagerService(incomingUnreachableUrlsQueue, incomingUrlStatisticQueue, SR)
+      urlsManager                  <- UrlsManager(incomingUnreachableUrlsQueue, incomingUrlStatisticQueue, SR)
+      networkObserver              = NetworkObserver(clientService, gatheringService, urlsManager, incomingUrlStatisticQueue)
       forkResolver = ForkResolver(
         gatheringService,
         clientService,
         dbReaderService,
-        urlsManagerService,
+        urlsManager,
         isChainSyncedRef,
         incomingUnreachableUrlsQueue,
         bestChainBlocks,
@@ -48,7 +49,7 @@ object ObserverProgram {
       )
       bestChainDownloader = BestChainDownloader(
         gatheringService,
-        urlsManagerService,
+        urlsManager,
         clientService,
         bestChainBlocks,
         isChainSyncedRef,
@@ -57,6 +58,9 @@ object ObserverProgram {
     } yield
       new ObserverProgram[F] {
         override def run: Stream[F, Unit] =
-          urlsManagerService.run concurrently forkResolver.run concurrently bestChainDownloader.run
+          urlsManager.run concurrently
+            forkResolver.run concurrently
+            bestChainDownloader.run concurrently
+            networkObserver.run
       }
 }

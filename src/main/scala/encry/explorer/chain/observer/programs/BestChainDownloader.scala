@@ -2,7 +2,7 @@ package encry.explorer.chain.observer.programs
 
 import cats.effect.{ Sync, Timer }
 import cats.effect.concurrent.Ref
-import encry.explorer.chain.observer.services.{ ClientService, GatheringService, UrlsManagerService }
+import encry.explorer.chain.observer.services.{ ClientService, GatheringService }
 import encry.explorer.core.{ Id, UrlAddress }
 import fs2.Stream
 import cats.syntax.functor._
@@ -22,12 +22,12 @@ trait BestChainDownloader[F[_]] {
 
 object BestChainDownloader {
   def apply[F[_]: Sync: Timer](
-    gatheringService: GatheringService[F],
-    urlsManagerService: UrlsManagerService[F],
-    clientService: ClientService[F],
-    bestChainBlocks: Queue[F, HttpApiBlock],
-    isChainSyncedRef: Ref[F, Boolean],
-    initialExplorerHeight: Int
+                                gatheringService: GatheringService[F],
+                                urlsManagerService: UrlsManager[F],
+                                clientService: ClientService[F],
+                                bestChainBlocks: Queue[F, HttpApiBlock],
+                                isChainSyncedRef: Ref[F, Boolean],
+                                initialExplorerHeight: Int
   ): BestChainDownloader[F] =
     new BestChainDownloader[F] {
       override def run: Stream[F, Unit] = Stream.eval(downloadNext(initialExplorerHeight))

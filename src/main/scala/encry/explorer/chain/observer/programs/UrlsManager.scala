@@ -1,9 +1,9 @@
-package encry.explorer.chain.observer.services
+package encry.explorer.chain.observer.programs
 
 import cats.effect.concurrent.Ref
 import cats.effect.{ Concurrent, Sync, Timer }
-import cats.syntax.functor._
 import cats.instances.try_._
+import cats.syntax.functor._
 import encry.explorer.core.UrlAddress
 import encry.explorer.core.settings.ExplorerSettings
 import fs2.Stream
@@ -16,19 +16,19 @@ import scala.util.Try
 //todo add insertion network statistic to db
 //todo add work with limited number of urls
 //todo add last up time computation
-trait UrlsManagerService[F[_]] {
+trait UrlsManager[F[_]] {
 
   def run: Stream[F, Unit]
 
   def getAvailableUrls: F[List[UrlAddress]]
 }
 
-object UrlsManagerService {
+object UrlsManager {
   def apply[F[_]: Sync: Timer: Concurrent](
     incomingUnreachableUrls: Queue[F, UrlAddress],
     incomingUrlStatistic: Queue[F, UrlCurrentState],
     SR: ExplorerSettings
-  ): F[UrlsManagerService[F]] =
+  ): F[UrlsManager[F]] =
     for {
       localUrlsInfo <- Ref.of[F, Map[UrlAddress, UrlInfo]](
                         SR.httpClientSettings.encryNodes
@@ -36,7 +36,7 @@ object UrlsManagerService {
                           .toMap
                       )
     } yield
-      new UrlsManagerService[F] {
+      new UrlsManager[F] {
         override def run: Stream[F, Unit] =
           processIncomingUnreachableUrls concurrently cleanupMetered concurrently processIncomingUrlStatistic
 

@@ -145,5 +145,12 @@ package object core {
           ApplicativeError[F, Throwable].raiseError(new Throwable(s"Incorrect nested url data cause: $err"))
         case Right(value) => UrlAddress.apply(value).pure[F]
       }
+
+    def fromInfoAddress[F[_]: Applicative: ApplicativeError[*[_], Throwable]](string: String): F[UrlAddress] = {
+      val rawAddress: String = string.split(':').headOption.getOrElse("")
+      val correctAddress: String = s"http://$rawAddress:9051"
+      fromString(correctAddress)
+    }
+
   }
 }

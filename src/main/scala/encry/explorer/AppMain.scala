@@ -40,20 +40,24 @@ object AppMain extends IOApp {
                                                       override def liftF[T](v: ConnectionIO[T]): IO[T] =
                                                         liftOp.apply(v)
                                                     }.pure[IO]
-          bestChainBlocks <- Queue.bounded[IO, HttpApiBlock](200)
-          forkBlocks      <- Queue.bounded[IO, String](200)
-          headerRepo      = HeaderRepository.apply[IO]
-          dbReader        = DBReaderService(headerRepo)
+          _                                                     <- logger.info(s"Resources and implicits values were initialised successfully.")
+          bestChainBlocks                                       <- Queue.bounded[IO, HttpApiBlock](200)
+          forkBlocks                                            <- Queue.bounded[IO, String](200)
+          (headerRepo, inputRepo, outputRepo, transactionsRepo) = repositories
+          _                                                     <- logger.info(s"All repositories were created successfully.")
+          dbReader                                              = DBReaderService(headerRepo)
+          _                                                     <- logger.info(s"DB reader was created successfully.")
           db <- DBService
                  .apply[IO](
                    bestChainBlocks,
                    forkBlocks,
                    headerRepo,
-                   InputRepository.apply[IO],
-                   OutputRepository.apply[IO],
-                   TransactionRepository.apply[IO]
+                   inputRepo,
+                   outputRepo,
+                   transactionsRepo
                  )
                  .pure[IO]
+          _        <- logger.info(s"DB service was created successfully.")
           dbHeight <- db.getBestHeightFromDB
           _        <- logger.info(s"Explorer app has been started. Last height in the data base is: $dbHeight.")
           op       <- ObserverProgram(client, dbReader, forkBlocks, bestChainBlocks, dbHeight, sr)
@@ -61,7 +65,7 @@ object AppMain extends IOApp {
         } yield ()).as(ExitCode.Success)
     }
 
-  def resources: Resource[IO, (Client[IO], HikariTransactor[IO], ExplorerSettings)] =
+  private def resources: Resource[IO, (Client[IO], HikariTransactor[IO], ExplorerSettings)] =
     for {
       settings <- Resource.liftF(SettingsReader.read[IO])
       tf: ThreadFactory = new ThreadFactoryBuilder()
@@ -73,4 +77,9 @@ object AppMain extends IOApp {
       client                       <- BlazeClientBuilder[IO](ec).resource
       ht                           <- DB[IO](settings)
     } yield (client, ht, settings)
+
+  private def repositories(
+    implicit liftIO: LiftConnectionIO[IO]
+  ): (HeaderRepository[IO], InputRepository[IO], OutputRepository[IO], TransactionRepository[IO]) =
+    (HeaderRepository.apply[IO], InputRepository.apply[IO], OutputRepository.apply[IO], TransactionRepository.apply[IO])
 }
