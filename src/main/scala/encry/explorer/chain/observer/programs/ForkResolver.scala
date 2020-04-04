@@ -26,18 +26,18 @@ trait ForkResolver[F[_]] {
 
 object ForkResolver {
   def apply[F[_]: Timer: Applicative: Monad: Sync](
-                                                    gatheringService: GatheringService[F],
-                                                    clientService: ClientService[F],
-                                                    dbReaderService: DBReaderService[F],
-                                                    urlsManagerService: UrlsManager[F],
-                                                    isChainSyncedRef: Ref[F, Boolean],
-                                                    incomingUnreachableUrls: Queue[F, UrlAddress],
-                                                    blocksToResolve: Queue[F, HttpApiBlock],
-                                                    blocksMarkAsNonBest: Queue[F, String]
+    gatheringService: GatheringService[F],
+    clientService: ClientService[F],
+    dbReaderService: DBReaderService[F],
+    urlsManagerService: UrlsManager[F],
+    isChainSyncedRef: Ref[F, Boolean],
+    incomingUnreachableUrls: Queue[F, UrlAddress],
+    blocksToResolve: Queue[F, HttpApiBlock],
+    blocksMarkAsNonBest: Queue[F, String]
   ): ForkResolver[F] = new ForkResolver[F] {
 
     override def run: Stream[F, Unit] =
-      Stream(())
+      Stream(()).repeat
         .covary[F]
         .metered(30.seconds)
         .evalMap(_ => isChainSyncedRef.get.flatMap(if (_) resolveForks else ().pure[F]))

@@ -27,7 +27,7 @@ object NetworkObserver {
     outgoingUrlStatistic: Queue[F, UrlCurrentState],
   ): NetworkObserver[F] = new NetworkObserver[F] {
     override def run: Stream[F, Unit] =
-      Stream(())
+      Stream(()).repeat
         .covary[F]
         .metered(60.seconds)
         .evalMap(_ => getNetworkInfo)

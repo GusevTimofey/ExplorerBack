@@ -22,12 +22,12 @@ trait BestChainDownloader[F[_]] {
 
 object BestChainDownloader {
   def apply[F[_]: Sync: Timer](
-                                gatheringService: GatheringService[F],
-                                urlsManagerService: UrlsManager[F],
-                                clientService: ClientService[F],
-                                bestChainBlocks: Queue[F, HttpApiBlock],
-                                isChainSyncedRef: Ref[F, Boolean],
-                                initialExplorerHeight: Int
+    gatheringService: GatheringService[F],
+    urlsManagerService: UrlsManager[F],
+    clientService: ClientService[F],
+    bestChainBlocks: Queue[F, HttpApiBlock],
+    isChainSyncedRef: Ref[F, Boolean],
+    initialExplorerHeight: Int
   ): BestChainDownloader[F] =
     new BestChainDownloader[F] {
       override def run: Stream[F, Unit] = Stream.eval(downloadNext(initialExplorerHeight))
@@ -49,7 +49,7 @@ object BestChainDownloader {
                             .map(computeMostFrequent)
                             .map(_.map(_._1).getOrElse(0))
           currentChainStatus <- isChainSyncedRef.get
-          _ <- if (!currentChainStatus && newHeight == networkHeight) isChainSyncedRef.set(true) else ().pure[F]
+          _                  <- if (!currentChainStatus && newHeight == networkHeight) isChainSyncedRef.set(true) else ().pure[F]
         } yield newHeight).flatMap { eh =>
           isChainSyncedRef.get.flatMap { isChainSynced =>
             if (isChainSynced) Timer[F].sleep(20.seconds) >> downloadNext(eh)

@@ -53,7 +53,7 @@ object UrlsManager {
           }.void
 
         private def cleanupMetered: Stream[F, Unit] =
-          Stream(())
+          Stream(()).repeat
             .covary[F]
             .metered(10.seconds)
             .evalMap(_ => localUrlsInfo.update(_.filter(elem => elem._2.failedPingsNumber < 3)))
