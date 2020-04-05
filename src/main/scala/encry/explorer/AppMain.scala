@@ -3,7 +3,6 @@ package encry.explorer
 import java.util.concurrent.{ Executors, ThreadFactory }
 
 import cats.effect.{ ExitCode, IO, IOApp, Resource }
-import cats.syntax.applicative._
 import cats.syntax.functor._
 import cats.~>
 import com.google.common.util.concurrent.ThreadFactoryBuilder
@@ -35,33 +34,25 @@ object AppMain extends IOApp {
       case (client, ht, sr) =>
         (for {
           implicit0(logger: SelfAwareStructuredLogger[IO]) <- Slf4jLogger.create[IO]
-          implicit0(liftIO: LiftConnectionIO[IO]) <- new LiftConnectionIO[IO] {
-                                                      override def liftOp: ConnectionIO ~> IO = ht.trans
-                                                      override def liftF[T](v: ConnectionIO[T]): IO[T] =
-                                                        liftOp.apply(v)
-                                                    }.pure[IO]
-          _                                                     <- logger.info(s"Resources and implicits values were initialised successfully.")
-          bestChainBlocks                                       <- Queue.bounded[IO, HttpApiBlock](200)
-          forkBlocks                                            <- Queue.bounded[IO, String](200)
-          (headerRepo, inputRepo, outputRepo, transactionsRepo) = repositories
-          _                                                     <- logger.info(s"All repositories were created successfully.")
-          dbReader                                              = DBReaderService(headerRepo)
-          _                                                     <- logger.info(s"DB reader was created successfully.")
-          db <- DBService
-                 .apply[IO](
-                   bestChainBlocks,
-                   forkBlocks,
-                   headerRepo,
-                   inputRepo,
-                   outputRepo,
-                   transactionsRepo
-                 )
-                 .pure[IO]
-          _        <- logger.info(s"DB service was created successfully.")
-          dbHeight <- db.getBestHeightFromDB
-          _        <- logger.info(s"Explorer app has been started. Last height in the data base is: $dbHeight.")
-          op       <- ObserverProgram(client, dbReader, forkBlocks, bestChainBlocks, dbHeight, sr)
-          _        <- (op.run concurrently db.run).compile.drain
+          implicit0(liftIO: LiftConnectionIO[IO]) = new LiftConnectionIO[IO] {
+            override def liftOp: ConnectionIO ~> IO          = ht.trans
+            override def liftF[T](v: ConnectionIO[T]): IO[T] = liftOp.apply(v)
+          }
+          _                <- logger.info(s"Resources and implicit values were initialised successfully.")
+          bestChainBlocks  <- Queue.bounded[IO, HttpApiBlock](sr.encrySettings.rollbackMaxHeight * 2)
+          forkBlocks       <- Queue.bounded[IO, String](sr.encrySettings.rollbackMaxHeight)
+          (hr, ir, or, tr) = repositories
+          _                <- logger.info(s"All repositories were initialised successfully.")
+          dbReader         = DBReaderService[IO](hr)
+          _                <- logger.info(s"DB reader was initialised successfully.")
+          db               = DBService[IO](bestChainBlocks, forkBlocks, hr, ir, or, tr)
+          _                <- logger.info(s"DB service was created successfully.")
+          dbHeight         <- db.getBestHeightFromDB
+          _                <- logger.info(s"Last height in the explorer DB is: $dbHeight.")
+          op               <- ObserverProgram[IO](client, dbReader, forkBlocks, bestChainBlocks, dbHeight, sr)
+          _                <- logger.info(s"Chain observer program stated successfully.")
+          _                <- (op.run concurrently db.run).compile.drain
+          _                <- logger.info(s"Explorer app has been started. Last height in the data base is: $dbHeight.")
         } yield ()).as(ExitCode.Success)
     }
 
@@ -73,13 +64,15 @@ object AppMain extends IOApp {
         .setDaemon(false)
         .setPriority(Thread.NORM_PRIORITY)
         .build()
-      ec: ExecutionContextExecutor = ExecutionContext.fromExecutor(Executors.newCachedThreadPool(tf))
-      client                       <- BlazeClientBuilder[IO](ec).resource
-      ht                           <- DB[IO](settings)
+      ec: ExecutionContextExecutor = ExecutionContext.fromExecutor(
+        Executors.newFixedThreadPool(settings.httpClientSettings.observerClientThreadsQuantity, tf)
+      )
+      client <- BlazeClientBuilder[IO](ec).resource
+      ht     <- DB[IO](settings)
     } yield (client, ht, settings)
 
   private def repositories(
     implicit liftIO: LiftConnectionIO[IO]
   ): (HeaderRepository[IO], InputRepository[IO], OutputRepository[IO], TransactionRepository[IO]) =
-    (HeaderRepository.apply[IO], InputRepository.apply[IO], OutputRepository.apply[IO], TransactionRepository.apply[IO])
+    (HeaderRepository[IO], InputRepository[IO], OutputRepository[IO], TransactionRepository[IO])
 }

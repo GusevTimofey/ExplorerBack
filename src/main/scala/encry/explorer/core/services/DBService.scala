@@ -7,6 +7,7 @@ import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.{ Applicative, Monad }
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
+import encry.explorer.core.Id
 import encry.explorer.core.db.models.{ HeaderDBModel, InputDBModel, OutputDBModel, TransactionDBModel }
 import encry.explorer.core.db.repositories.{
   HeaderRepository,
@@ -14,14 +15,13 @@ import encry.explorer.core.db.repositories.{
   OutputRepository,
   TransactionRepository
 }
-import encry.explorer.core.{ Id, RunnableProgram }
 import fs2.Stream
 import fs2.concurrent.Queue
 import io.chrisdavenport.log4cats.Logger
 
 import scala.util.Try
 
-trait DBService[F[_]] extends RunnableProgram[F] {
+trait DBService[F[_]] {
   def run: Stream[F, Unit]
 
   def getBestHeightFromDB: F[Int]

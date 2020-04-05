@@ -1,6 +1,7 @@
 package encry.explorer.core.settings
 
 final case class ExplorerSettings(
-  dbSettings: DBSettings,
-  httpClientSettings: HttpClientSettings
+                                   dbSettings: DBSettings,
+                                   httpClientSettings: ChainObserverSettings,
+                                   encrySettings: EncrySettings
 )

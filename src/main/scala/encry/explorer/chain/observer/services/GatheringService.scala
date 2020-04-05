@@ -48,7 +48,12 @@ object GatheringService {
         .map(filterResponses)
         .flatMap {
           case (addresses, result) =>
-            unreachableUrlsQueue.enqueue(Stream.emits[F, UrlAddress](addresses)).compile.drain.map(_ => result)
+            Logger[F].info(
+              s"Gather all function finished. " +
+                s"Unreachable urls are: ${addresses.mkString(",")}. " +
+                s"Going to send them to the urls manager. " +
+                s"Result is: $result."
+            ) >> unreachableUrlsQueue.enqueue(Stream.emits[F, UrlAddress](addresses)).compile.drain.map(_ => result)
         }
 
     override def gatherFirst[R](
@@ -57,7 +62,8 @@ object GatheringService {
     ): F[Option[R]] =
       tryToRichExpectedElement[R](request, urls).flatMap {
         case (maybeR, addresses) =>
-          unreachableUrlsQueue.enqueue(Stream.emits[F, UrlAddress](addresses)).compile.drain.map(_ => maybeR)
+          Logger[F].info(s"Gather first function finished.") >>
+            unreachableUrlsQueue.enqueue(Stream.emits[F, UrlAddress](addresses)).compile.drain.map(_ => maybeR)
       }
 
     override def gatherOne[R](request: UrlAddress => F[Either[HttpApiErr, R]], url: UrlAddress): F[Option[R]] =
