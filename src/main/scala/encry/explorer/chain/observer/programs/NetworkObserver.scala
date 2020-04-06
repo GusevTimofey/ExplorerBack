@@ -1,6 +1,5 @@
 package encry.explorer.chain.observer.programs
 
-import cats.Monad
 import cats.effect.{ Sync, Timer }
 import cats.instances.try_._
 import cats.syntax.flatMap._
@@ -11,6 +10,7 @@ import encry.explorer.chain.observer.services.{ ClientService, GatheringService 
 import encry.explorer.core.UrlAddress
 import fs2.Stream
 import fs2.concurrent.Queue
+import io.chrisdavenport.log4cats.Logger
 
 import scala.concurrent.duration._
 import scala.util.Try
@@ -20,7 +20,7 @@ trait NetworkObserver[F[_]] {
 }
 
 object NetworkObserver {
-  def apply[F[_]: Monad: Sync: Timer](
+  def apply[F[_]: Sync: Timer: Logger](
     clientService: ClientService[F],
     gatheringService: GatheringService[F],
     urlsManager: UrlsManager[F],
@@ -29,7 +29,8 @@ object NetworkObserver {
     override def run: Stream[F, Unit] =
       Stream(()).repeat
         .covary[F]
-        .metered(60.seconds)
+        .metered(30.seconds)
+        .flatTap(_ => Stream.eval(Logger[F].info(s"Performing getInfo request for all known urls.")))
         .evalMap(_ => getNetworkInfo)
 
     private def getNetworkInfo: F[Unit] =
@@ -38,6 +39,7 @@ object NetworkObserver {
         nodesInfo     <- gatheringService.gatherAll(clientService.getClientInfo, urls)
         connectedInfo <- gatheringService.gatherAll(clientService.getConnectedPeers, urls)
         toUrlsManager = mergeConnectedWithInfo(nodesInfo, connectedInfo)
+        _             <- Logger[F].info(s"Urls statistics are: ${toUrlsManager.mkString(",")}.")
         _             <- outgoingUrlStatistic.enqueue(Stream.emits(toUrlsManager)).compile.drain
       } yield ()
 
