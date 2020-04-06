@@ -107,14 +107,14 @@ package object core {
     implicit def decoder: Decoder[Amount] = deriving
   }
 
-  @newtype final case class TokenId(value: Array[Byte])
+  @newtype final case class TokenId(value: String)
   object TokenId {
     implicit def meta: Meta[TokenId]       = deriving
     implicit def encoder: Encoder[TokenId] = deriving
     implicit def decoder: Decoder[TokenId] = deriving
   }
 
-  @newtype final case class Data(value: Array[Byte])
+  @newtype final case class Data(value: String)
   object Data {
     implicit def meta: Meta[Data]       = deriving
     implicit def encoder: Encoder[Data] = deriving

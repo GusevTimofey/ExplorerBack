@@ -113,7 +113,7 @@ object ClientService {
                 s"Going to retry this request again."
           )
         )
-        .flatTap(result => Logger[F].info(s"Request $requestContent finished successfully. Result is: $result."))
+        .flatTap(result => Logger[F].debug(s"Request $requestContent finished successfully. Result is: $result."))
         .handleErrorWith { err: Throwable =>
           Logger[F]
             .info(s"Retrying attempts for request $requestContent have ended. Last error is: ${err.getMessage}.")

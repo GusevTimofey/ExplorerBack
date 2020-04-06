@@ -68,6 +68,10 @@ object DBService {
         _            <- transactionRepository.insertMany(dbComponents.dbTransactions)
         _            <- inputRepository.insertMany(dbComponents.dbInputs)
         _            <- outputRepository.insertMany(dbComponents.dbOutputs)
+        _ <- Logger[F].info(
+              s"Block inserted with id: ${httpBlock.header.id} at height ${httpBlock.header.height}. " +
+                s"Txs number is: ${httpBlock.payload.transactions.size}."
+            )
       } yield ()
 
   }

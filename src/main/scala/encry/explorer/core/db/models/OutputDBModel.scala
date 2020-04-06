@@ -51,7 +51,7 @@ object OutputDBModel {
           data.value.toString,
           ""
         )
-      case HttpApiTokenIssuingBox(outputType, id, proposition, nonce, amount, tokenId) =>
+      case HttpApiTokenIssuingBox(outputType, id, tokenId, proposition, nonce, amount) =>
         OutputDBModel(
           id,
           headerId,

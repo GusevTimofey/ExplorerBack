@@ -6,8 +6,8 @@ import encry.explorer.core._
 final case class HttpApiTokenIssuingBox(
   `type`: TypeId,
   id: Id,
+  tokenId: TokenId,
   proposition: EncryProposition,
   nonce: Nonce,
-  amount: Amount,
-  tokenId: TokenId
+  amount: Amount
 ) extends HttpApiBox

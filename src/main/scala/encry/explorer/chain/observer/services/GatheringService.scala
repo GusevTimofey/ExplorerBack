@@ -48,7 +48,7 @@ object GatheringService {
         .map(filterResponses)
         .flatMap {
           case (addresses, result) =>
-            Logger[F].info(
+            Logger[F].debug(
               s"Result is gathered from urls: ${urls.mkString(",")} with regime 'gather all' successfully. " +
                 s"Unreachable urls are: ${addresses.mkString(",")}. " +
                 s"Going to send them to the urls manager. " +
@@ -62,7 +62,7 @@ object GatheringService {
     ): F[Option[R]] =
       tryToRichExpectedElement[R](request, urls).flatMap {
         case (maybeR, addresses) =>
-          Logger[F].info(
+          Logger[F].debug(
             s"Result is gathered from urls: ${urls.mkString(",")} with regime 'gather first' successfully. " +
               s"Unreachable urls are: ${addresses.mkString(",")}. " +
               s"Going to send them to the urls manager. " +
@@ -82,7 +82,7 @@ object GatheringService {
         .parSequence
         .map(_.flatten)
         .flatTap { res =>
-          Logger[F].info(
+          Logger[F].debug(
             s"Result is gathered from urls: ${urls.mkString(",")} in regime 'gather many' successfully. " +
               s"Result is: ${res.mkString(",")}."
           )
