@@ -37,10 +37,11 @@ object DBService {
     transactionRepository: TransactionRepository[F]
   ): DBService[F] = new DBService[F] {
 
-    override def run: Stream[F, Unit] = updateChain() concurrently resolveFork
+    override def run: Stream[F, Unit] = updateChain concurrently resolveFork
 
     override def getBestHeightFromDB: F[Int] = headerRepository.getBestHeight.map(_.getOrElse(0))
 
+    //todo resolve used inputs
     private def httpBlockToDBComponents(inputBlock: HttpApiBlock): F[DbComponentsToInsert] = {
       val dbHeader: HeaderDBModel = HeaderDBModel.fromHttpApi(inputBlock)
       val dbInputs: List[InputDBModel] =
@@ -51,8 +52,9 @@ object DBService {
       DbComponentsToInsert(dbHeader, dbInputs, dbOutputs, dbTransactions).pure[F]
     }
 
-    private def updateChain(): Stream[F, Unit] =
-      blocksToInsert.dequeue
+    private def updateChain: Stream[F, Unit] =
+      blocksToInsert
+        .dequeue
         .evalMap(insertNew)
         .evalMap(_ => Logger[F].info(s"New block was inserted!"))
 

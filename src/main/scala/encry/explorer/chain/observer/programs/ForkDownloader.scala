@@ -7,7 +7,7 @@ trait ForkDownloader[F[_]] {
   def run: Stream[F, Unit]
 }
 
-//todo not finished yet
+//todo implement
 object ForkDownloader {
   def apply[F[_]](
     gatheringService: GatheringService[F],

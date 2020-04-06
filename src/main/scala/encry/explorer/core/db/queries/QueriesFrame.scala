@@ -4,6 +4,7 @@ import doobie.util.log.LogHandler
 
 trait QueriesFrame {
 
+  //todo implement custom logger for clean info output
   implicit val han: LogHandler = LogHandler.jdkLogHandler
 
   val table: String
