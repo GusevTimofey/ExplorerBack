@@ -37,7 +37,7 @@ object ObserverProgram {
       _                    <- Logger[F].info(s"Client service initialized successfully.")
       gatheringService     = GatheringService(clientService, unreachableUrlsQueue)
       _                    <- Logger[F].info(s"Gathering service initialized successfully.")
-      urlsManager          <- UrlsManager(unreachableUrlsQueue, urlStatisticQueue, ES)
+      urlsManager          <- UrlsManager(clientService, gatheringService, unreachableUrlsQueue, urlStatisticQueue, ES)
       _                    <- Logger[F].info(s"Urls manager initialized successfully.")
       networkObserver      = NetworkObserver(clientService, gatheringService, urlsManager, urlStatisticQueue)
       _                    <- Logger[F].info(s"Network observer initialized successfully.")

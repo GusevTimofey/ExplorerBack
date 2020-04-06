@@ -49,7 +49,7 @@ object GatheringService {
         .flatMap {
           case (addresses, result) =>
             Logger[F].info(
-              s"Gather all function finished. " +
+              s"Result is gathered from urls: ${urls.mkString(",")} with regime 'gather all' successfully. " +
                 s"Unreachable urls are: ${addresses.mkString(",")}. " +
                 s"Going to send them to the urls manager. " +
                 s"Result is: $result."
@@ -62,8 +62,12 @@ object GatheringService {
     ): F[Option[R]] =
       tryToRichExpectedElement[R](request, urls).flatMap {
         case (maybeR, addresses) =>
-          Logger[F].info(s"Gather first function finished.") >>
-            unreachableUrlsQueue.enqueue(Stream.emits[F, UrlAddress](addresses)).compile.drain.map(_ => maybeR)
+          Logger[F].info(
+            s"Result is gathered from urls: ${urls.mkString(",")} with regime 'gather first' successfully. " +
+              s"Unreachable urls are: ${addresses.mkString(",")}. " +
+              s"Going to send them to the urls manager. " +
+              s"Result is: $maybeR."
+          ) >> unreachableUrlsQueue.enqueue(Stream.emits[F, UrlAddress](addresses)).compile.drain.map(_ => maybeR)
       }
 
     override def gatherOne[R](request: UrlAddress => F[Either[HttpApiErr, R]], url: UrlAddress): F[Option[R]] =
@@ -72,7 +76,17 @@ object GatheringService {
     override def gatherMany[R](
       requests: List[UrlAddress => F[Either[HttpApiErr, R]]],
       urls: List[UrlAddress]
-    ): F[List[R]] = requests.map(gatherFirst(_, urls)).parSequence.map(_.flatten)
+    ): F[List[R]] =
+      requests
+        .map(gatherFirst(_, urls))
+        .parSequence
+        .map(_.flatten)
+        .flatTap { res =>
+          Logger[F].info(
+            s"Result is gathered from urls: ${urls.mkString(",")} in regime 'gather many' successfully. " +
+              s"Result is: ${res.mkString(",")}."
+          )
+        }
 
     private def filterResponses[R](
       elems: List[(UrlAddress, Either[HttpApiErr, R])]

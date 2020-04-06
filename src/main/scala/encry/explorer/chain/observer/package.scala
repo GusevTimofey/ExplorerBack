@@ -28,6 +28,8 @@ package object observer {
     implicit def decoder: Decoder[TypeId] = deriving
   }
 
+  @newtype final case class BanTime(value: Long)
+
   object errors {
     sealed trait HttpApiErr
     final case object NoSuchElementErr     extends HttpApiErr

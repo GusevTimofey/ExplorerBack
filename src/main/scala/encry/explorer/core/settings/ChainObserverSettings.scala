@@ -4,5 +4,7 @@ final case class ChainObserverSettings(
   encryNodes: List[String],
   observerClientThreadsQuantity: Int,
   maxConnections: Int,
-  blockRequestInterval: Int
+  blockRequestInterval: Int,
+  maxPingTimes: Int,
+  maxTimeBan: Long
 )
