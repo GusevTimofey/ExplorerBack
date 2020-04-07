@@ -7,6 +7,7 @@ import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.option._
 import cats.syntax.parallel._
+import cats.syntax.traverse._
 import encry.explorer.chain.observer.errors._
 import encry.explorer.core.UrlAddress
 import fs2.Stream
@@ -28,6 +29,8 @@ trait GatheringService[F[_]] {
   def gatherOne[R](request: UrlAddress => F[Either[HttpApiErr, R]], url: UrlAddress): F[Option[R]]
 
   def gatherMany[R](requests: List[UrlAddress => F[Either[HttpApiErr, R]]], urls: List[UrlAddress]): F[List[R]]
+
+  def gatherOneFromMany[R](requests: List[UrlAddress => F[Either[HttpApiErr, R]]], urls: List[UrlAddress]): F[List[R]]
 
 }
 
@@ -87,6 +90,11 @@ object GatheringService {
               s"Result is: ${res.mkString(",")}."
           )
         }
+
+    override def gatherOneFromMany[R](
+      requests: List[UrlAddress => F[Either[HttpApiErr, R]]],
+      urls: List[UrlAddress]
+    ): F[List[R]] = requests.traverse(gatherFirst(_, urls)).map(_.flatten)
 
     private def filterResponses[R](
       elems: List[(UrlAddress, Either[HttpApiErr, R])]
