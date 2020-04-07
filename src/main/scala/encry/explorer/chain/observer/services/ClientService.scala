@@ -5,6 +5,7 @@ import cats.syntax.applicativeError._
 import cats.syntax.either._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
+import cats.syntax.option._
 import encry.explorer.chain.observer.errors.{ AddressIsUnreachable, HttpApiErr, NoSuchElementErr }
 import encry.explorer.chain.observer.http.api.models.{ HttpApiBlock, HttpApiNodeInfo, HttpApiPeersInfo }
 import encry.explorer.core.UrlAddress
@@ -13,7 +14,7 @@ import io.circe._
 import io.circe.generic.auto._
 import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.client.Client
-import org.http4s.{ Method, Request, Uri }
+import org.http4s.{ InvalidMessageBodyFailure, Method, Request, Uri }
 import retry.RetryPolicies.{ constantDelay, limitRetries }
 import retry.syntax.all._
 import retry.{ RetryDetails, RetryPolicy }
@@ -76,10 +77,16 @@ object ClientService {
 
     private def doRequestOfList[R: Decoder](request: String, from: UrlAddress): F[Either[HttpApiErr, List[R]]] =
       retryRequest(
-        client.expect[List[R]](getRequest(request)).map {
-          case Nil  => NoSuchElementErr.asLeft[List[R]]
-          case list => list.asRight[HttpApiErr]
-        },
+        client
+          .expect[List[R]](getRequest(request))
+          .handleErrorWith {
+            case InvalidMessageBodyFailure(_, cause) =>
+              Logger[F].info(s"Request $request failed with cause $cause.").map(_ => List.empty[R])
+          }
+          .map {
+            case Nil  => NoSuchElementErr.asLeft[List[R]]
+            case list => list.asRight[HttpApiErr]
+          },
         request,
         from
       )
@@ -90,7 +97,13 @@ object ClientService {
       optionalRequestInfo: String = ""
     ): F[Either[HttpApiErr, R]] =
       retryRequest(
-        client.expectOption[R](getRequest(request)).map(Either.fromOption(_, NoSuchElementErr)),
+        client
+          .expectOption[R](getRequest(request))
+          .handleErrorWith {
+            case InvalidMessageBodyFailure(_, cause) =>
+              Logger[F].info(s"Request $request failed with cause $cause.").map(_ => none[R])
+          }
+          .map(Either.fromOption(_, NoSuchElementErr)),
         request + optionalRequestInfo,
         from
       )
@@ -105,18 +118,17 @@ object ClientService {
       request
         .retryingOnAllErrors(
           policy,
-          (err, details: RetryDetails) =>
+          (_, details: RetryDetails) =>
             Logger[F].info(
               s"Failed to perform request: $requestContent. " +
                 s"Retry details are: ${retryDetailsLogMessage(details)}. " +
-                s"Request performing failed cause: ${err.getMessage}. " +
                 s"Going to retry this request again."
           )
         )
         .flatTap(result => Logger[F].debug(s"Request $requestContent finished successfully. Result is: $result."))
-        .handleErrorWith { err: Throwable =>
+        .handleErrorWith { _: Throwable =>
           Logger[F]
-            .info(s"Retrying attempts for request $requestContent have ended. Last error is: ${err.getMessage}.")
+            .info(s"Retrying attempts for request $requestContent have ended.")
             .map(_ => AddressIsUnreachable.asLeft[M])
         }
 

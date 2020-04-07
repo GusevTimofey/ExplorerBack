@@ -56,7 +56,6 @@ object DBService {
       blocksToInsert
         .dequeue
         .evalMap(insertNew)
-        .evalMap(_ => Logger[F].info(s"New block was inserted!"))
 
     private def resolveFork: Stream[F, Unit] =
       forkBlocks.dequeue

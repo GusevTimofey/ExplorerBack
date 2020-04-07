@@ -106,12 +106,12 @@ object GatheringService {
           case Some(url) =>
             f(url).flatMap {
               case Right(potentialElement) =>
-                Logger[F].info(s"Got expected element from $url").map(_ => potentialElement.some -> inconsistentUrls)
+                Logger[F].debug(s"Got expected element from $url").map(_ => potentialElement.some -> inconsistentUrls)
               case Left(NoSuchElementErr) =>
-                Logger[F].info(s"Got the empty element from $url.") >> loop(urls.drop(1), inconsistentUrls)
+                Logger[F].debug(s"Got the empty element from $url.") >> loop(urls.drop(1), inconsistentUrls)
               case _ =>
                 Logger[F]
-                  .info(s"Failed to setup connection with $url.")
+                  .debug(s"Failed to setup connection with $url.")
                   .flatMap(_ => loop(urls.drop(1), url :: inconsistentUrls))
             }
           case None =>

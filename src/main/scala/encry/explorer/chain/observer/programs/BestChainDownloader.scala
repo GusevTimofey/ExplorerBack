@@ -12,6 +12,7 @@ import cats.syntax.applicative._
 import cats.instances.try_._
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
 import fs2.concurrent.Queue
+import io.chrisdavenport.log4cats.Logger
 
 import scala.util.Try
 import scala.concurrent.duration._
@@ -21,7 +22,7 @@ trait BestChainDownloader[F[_]] {
 }
 
 object BestChainDownloader {
-  def apply[F[_]: Sync: Timer](
+  def apply[F[_]: Sync: Timer: Logger](
     gatheringService: GatheringService[F],
     urlsManagerService: UrlsManager[F],
     clientService: ClientService[F],
@@ -39,8 +40,15 @@ object BestChainDownloader {
           newHeight <- computeMostFrequentId(bestIdAtWorkingHeight) match {
                         case Some((id, urls)) =>
                           gatheringService.gatherFirst(clientService.getBlockBy(id.getValue), urls).flatMap {
-                            case Some(block) => bestChainBlocks.enqueue1(block).map(_ => workingHeight + 1)
-                            case None        => workingHeight.pure[F]
+                            case Some(block) =>
+                              Logger[F].info(
+                                s"Block with id: ${block.header.id} " +
+                                  s"at height ${block.header.height} " +
+                                  s"received from http api successfully."
+                              ) >> bestChainBlocks
+                                .enqueue1(block)
+                                .map(_ => workingHeight + 1)
+                            case None => workingHeight.pure[F]
                           }
                         case None => workingHeight.pure[F]
                       }
