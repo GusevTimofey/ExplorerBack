@@ -23,21 +23,21 @@ import scala.concurrent.duration._
 
 trait ClientService[F[_]] {
 
-  def getBlockIdsAt(height: Int)(from: UrlAddress): F[Either[HttpApiErr, List[String]]]
+  def getBlockIdsAt(height: Int)(from: UrlAddress): F[HttpApiErr Either List[String]]
 
-  def getBestBlockIdAt(height: Int)(from: UrlAddress): F[Either[HttpApiErr, String]]
+  def getBestBlockIdAt(height: Int)(from: UrlAddress): F[HttpApiErr Either String]
 
-  def getBlockBy(id: String)(from: UrlAddress): F[Either[HttpApiErr, HttpApiBlock]]
+  def getBlockBy(id: String)(from: UrlAddress): F[HttpApiErr Either HttpApiBlock]
 
-  def getClientInfo(from: UrlAddress): F[Either[HttpApiErr, HttpApiNodeInfo]]
+  def getClientInfo(from: UrlAddress): F[HttpApiErr Either HttpApiNodeInfo]
 
-  def getBestFullHeight(from: UrlAddress): F[Either[HttpApiErr, Int]]
+  def getBestFullHeight(from: UrlAddress): F[HttpApiErr Either Int]
 
-  def getBestHeadersHeight(from: UrlAddress): F[Either[HttpApiErr, Int]]
+  def getBestHeadersHeight(from: UrlAddress): F[HttpApiErr Either Int]
 
-  def getConnectedPeers(from: UrlAddress): F[Either[HttpApiErr, List[HttpApiPeersInfo]]]
+  def getConnectedPeers(from: UrlAddress): F[HttpApiErr Either List[HttpApiPeersInfo]]
 
-  def getLastIds(height: Int, quantity: Int)(from: UrlAddress): F[Either[HttpApiErr, List[String]]]
+  def getLastIds(height: Int, quantity: Int)(from: UrlAddress): F[HttpApiErr Either List[String]]
 }
 
 object ClientService {
