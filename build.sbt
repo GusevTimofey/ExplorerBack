@@ -12,6 +12,9 @@ val http4sVersion      = "0.21.0"
 val circeVersion       = "0.12.3"
 val simulacrumVersion  = "0.19.0"
 val catsRetryVersion   = "1.1.0"
+val redisVersion       = "0.9.3"
+val kafkaVersion       = "1.0.0"
+val tapirVersion       = "0.12.20"
 
 val doobie: Seq[ModuleID] = Seq(
   "org.tpolecat" %% "doobie-core"      % doobieVersion,
@@ -42,6 +45,23 @@ val http4s: Seq[ModuleID] = Seq(
   "org.http4s" %% "http4s-circe"        % http4sVersion
 )
 
+val redis = Seq(
+  "dev.profunktor" %% "redis4cats-effects" % redisVersion,
+  "dev.profunktor" %% "redis4cats-streams" % redisVersion
+)
+
+val kafka = Seq(
+  "com.github.fd4s" %% "fs2-kafka" % "1.0.0"
+)
+
+val tapir: Seq[ModuleID] = Seq(
+  "com.softwaremill.sttp.tapir" %% "tapir-core"               % tapirVersion,
+  "com.softwaremill.sttp.tapir" %% "tapir-json-circe"         % tapirVersion,
+  "com.softwaremill.sttp.tapir" %% "tapir-http4s-server"      % tapirVersion,
+  "com.softwaremill.sttp.tapir" %% "tapir-openapi-docs"       % tapirVersion,
+  "com.softwaremill.sttp.tapir" %% "tapir-openapi-circe-yaml" % tapirVersion
+)
+
 libraryDependencies ++= Seq(
   "io.monix"              %% "monix"                  % "3.1.0",
   "io.chrisdavenport"     %% "log4cats-slf4j"         % "0.4.0-M2",
@@ -54,7 +74,7 @@ libraryDependencies ++= Seq(
   "eu.timepit"            %% "refined"                % "0.9.13",
   "com.github.cb372"      %% "cats-retry"             % catsRetryVersion,
   "org.scalatest"         %% "scalatest"              % "3.1.0" % Test
-) ++ doobie ++ cats ++ http4s ++ circe
+) ++ doobie ++ cats ++ http4s ++ circe ++ redis ++ kafka ++ tapir
 
 scalacOptions ++= Seq(
   "-language:postfixOps",
