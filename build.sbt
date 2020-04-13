@@ -43,6 +43,7 @@ val http4s: Seq[ModuleID] = Seq(
 )
 
 libraryDependencies ++= Seq(
+  "io.monix"              %% "monix"                  % "3.1.0",
   "io.chrisdavenport"     %% "log4cats-slf4j"         % "0.4.0-M2",
   "io.estatico"           %% "newtype"                % "0.4.3",
   "com.github.pureconfig" %% "pureconfig"             % "0.12.2",
