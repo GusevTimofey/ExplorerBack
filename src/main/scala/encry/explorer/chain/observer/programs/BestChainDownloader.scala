@@ -11,6 +11,7 @@ import cats.syntax.either._
 import cats.syntax.applicative._
 import cats.instances.try_._
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
+import encry.explorer.events.processing.{ ExplorerEvent, NewBlockReceived }
 import fs2.concurrent.Queue
 import io.chrisdavenport.log4cats.Logger
 
@@ -27,6 +28,7 @@ object BestChainDownloader {
     urlsManagerService: UrlsManager[F],
     clientService: ClientService[F],
     bestChainBlocks: Queue[F, HttpApiBlock],
+    eventsQueue: Queue[F, ExplorerEvent],
     isChainSyncedRef: Ref[F, Boolean],
     initialExplorerHeight: Int
   ): BestChainDownloader[F] =
@@ -48,6 +50,8 @@ object BestChainDownloader {
                               ) >> bestChainBlocks
                                 .enqueue1(block)
                                 .map(_ => workingHeight + 1)
+                                .flatTap(_ => eventsQueue.enqueue1(NewBlockReceived(block.header.id.getValue)))
+
                             case None => workingHeight.pure[F]
                           }
                         case None => workingHeight.pure[F]
@@ -76,7 +80,7 @@ object BestChainDownloader {
         (lists: List[(UrlAddress, R)]) =>
           Either.catchNonFatal(lists.groupBy(_._2).maxBy(_._2.size)).toOption.map {
             case (r, urlsRaw) => r -> urlsRaw.map(_._1)
-        }
+          }
 
     }
 }

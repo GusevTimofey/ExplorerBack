@@ -1,13 +1,14 @@
 package encry.explorer.chain.observer.programs
 
 import cats.effect.concurrent.Ref
-import cats.effect.{ Sync, Timer }
+import cats.effect.{Sync, Timer}
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import encry.explorer.chain.observer.errors.HttpApiErr
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
-import encry.explorer.chain.observer.services.{ ClientService, GatheringService }
+import encry.explorer.chain.observer.services.{ClientService, GatheringService}
 import encry.explorer.core
+import encry.explorer.events.processing.ExplorerEvent
 import fs2.Stream
 import fs2.concurrent.Queue
 import io.chrisdavenport.log4cats.Logger
@@ -26,6 +27,7 @@ object ForkDownloader {
     urlsManager: UrlsManager[F],
     isChainSyncedRef: Ref[F, Boolean],
     outgoingForksBlocks: Queue[F, HttpApiBlock],
+    eventsQueue: Queue[F, ExplorerEvent],
     startWithHeight: Int
   ): F[ForkDownloader[F]] =
     for {

@@ -20,6 +20,7 @@ import encry.explorer.core.db.repositories.{
 }
 import encry.explorer.core.services.{ DBReaderService, DBService, SettingsReader }
 import encry.explorer.core.settings.ExplorerSettings
+import encry.explorer.events.processing.{ EventsProducer, ExplorerEvent }
 import fs2.concurrent.Queue
 import io.chrisdavenport.log4cats.SelfAwareStructuredLogger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
@@ -50,9 +51,11 @@ object AppMain extends TaskApp {
           _                <- logger.info(s"DB service was created successfully.")
           dbHeight         <- db.getBestHeightFromDB
           _                <- logger.info(s"Last height in the explorer DB is: $dbHeight.")
-          op               <- ObserverProgram[Task](client, dbReader, forkBlocks, bestChainBlocks, dbHeight, sr)
+          eventsQueue      <- Queue.unbounded[Task, ExplorerEvent]
+          ep                = EventsProducer[Task](eventsQueue, sr)
+          op               <- ObserverProgram[Task](client, dbReader, forkBlocks, bestChainBlocks, eventsQueue, dbHeight, sr)
           _                <- logger.info(s"Chain observer program stated successfully.")
-          _                <- (op.run concurrently db.run).compile.drain
+          _                <- (op.run concurrently db.run concurrently ep.runProducer).compile.drain
           _                <- logger.info(s"Explorer app has been started. Last height in the data base is: $dbHeight.")
         } yield ()).as(ExitCode.Success)
     }

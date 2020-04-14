@@ -3,6 +3,8 @@ package encry.explorer.events
 import ExplorerEventMessage.ExplorerEventProtoMessage
 import ExplorerEventMessage.ExplorerEventProtoMessage.{
   EventMessage,
+  ExplorerCoreLogEventMessage,
+  ExplorerObserverLogEventMessage,
   ForkOccurredEventMessage,
   NewBlockReceivedEventMessage,
   NewNodeEventMessage,
@@ -10,6 +12,8 @@ import ExplorerEventMessage.ExplorerEventProtoMessage.{
   UnavailableNodeEventMessage
 }
 import ExplorerEventMessage.ExplorerEventProtoMessage.EventMessage.{
+  ExplorerCoreLogEventMessage => ECLEM,
+  ExplorerObserverLogEventMessage => EOLEM,
   ForkOccurredEventMessage => FOEM,
   NewBlockReceivedEventMessage => NBREV,
   NewNodeEventMessage => NNEM,
@@ -72,11 +76,13 @@ package object processing {
     def toProto(event: ExplorerEvent): ExplorerEventProtoMessage =
       ExplorerEventProtoMessage().withEventMessage {
         event match {
-          case msg @ UnavailableNode(_)     => unavailableNodeExplorerEvent.toProto(msg)
-          case msg @ NewBlockReceived(_)    => newBlockReceivedExplorerEvent.toProto(msg)
-          case msg @ RollbackOccurred(_, _) => rollbackOccurredExplorerEvent.toProto(msg)
-          case msg @ NewNode(_)             => newNodeExplorerEvent.toProto(msg)
-          case msg @ ForkOccurred(_, _)     => forkOccurredExplorerEvent.toProto(msg)
+          case msg @ ExplorerObserverLogEvent(_) => explorerObserverLogEventExplorerEvent.toProto(msg)
+          case msg @ ExplorerCoreLogEvent(_)     => explorerCoreLogEventExplorerEvent.toProto(msg)
+          case msg @ UnavailableNode(_)          => unavailableNodeExplorerEvent.toProto(msg)
+          case msg @ NewBlockReceived(_)         => newBlockReceivedExplorerEvent.toProto(msg)
+          case msg @ RollbackOccurred(_, _)      => rollbackOccurredExplorerEvent.toProto(msg)
+          case msg @ NewNode(_)                  => newNodeExplorerEvent.toProto(msg)
+          case msg @ ForkOccurred(_, _)          => forkOccurredExplorerEvent.toProto(msg)
         }
       }
 
@@ -96,6 +102,8 @@ package object processing {
           case msg @ ROEM(_)      => processEventMsg(rollbackOccurredExplorerEvent.fromProto, msg)
           case msg @ NNEM(_)      => processEventMsg(newNodeExplorerEvent.fromProto, msg)
           case msg @ FOEM(_)      => processEventMsg(forkOccurredExplorerEvent.fromProto, msg)
+          case msg @ EOLEM(_)     => processEventMsg(explorerObserverLogEventExplorerEvent.fromProto, msg)
+          case msg @ ECLEM(_)     => processEventMsg(explorerCoreLogEventExplorerEvent.fromProto, msg)
         }
       }.toOption.flatten
   }
@@ -103,6 +111,22 @@ package object processing {
   sealed trait EventSerializer[T] {
     def toProto(t: T): EventMessage
     def fromProto(message: EventMessage): Option[T]
+  }
+
+  object explorerObserverLogEventExplorerEvent extends EventSerializer[ExplorerObserverLogEvent] {
+    override def toProto(t: ExplorerObserverLogEvent): EventMessage =
+      EOLEM(ExplorerObserverLogEventMessage().withLog(t.msg))
+
+    override def fromProto(message: EventMessage): Option[ExplorerObserverLogEvent] =
+      message.explorerObserverLogEventMessage.map(msg => ExplorerObserverLogEvent(msg.log))
+  }
+
+  object explorerCoreLogEventExplorerEvent extends EventSerializer[ExplorerCoreLogEvent] {
+    override def toProto(t: ExplorerCoreLogEvent): EventMessage =
+      ECLEM(ExplorerCoreLogEventMessage().withLog(t.msg))
+
+    override def fromProto(message: EventMessage): Option[ExplorerCoreLogEvent] =
+      message.explorerCoreLogEventMessage.map(msg => ExplorerCoreLogEvent(msg.log))
   }
 
   object unavailableNodeExplorerEvent extends EventSerializer[UnavailableNode] {

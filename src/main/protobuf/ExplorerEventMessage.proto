@@ -24,12 +24,22 @@ message ExplorerEventProtoMessage {
         uint32 height = 2;
     }
 
+    message ExplorerObserverLogEventMessage {
+        string log = 1;
+    }
+
+    message ExplorerCoreLogEventMessage {
+        string log = 1;
+    }
+
     oneof eventMessage {
         UnavailableNodeEventMessage unavailableNodeEventMessage = 1;
         NewBlockReceivedEventMessage newBlockReceivedEventMessage = 2;
         RollbackOccurredEventMessage rollbackOccurredEventMessage = 3;
         NewNodeEventMessage newNodeEventMessage = 4;
         ForkOccurredEventMessage forkOccurredEventMessage = 5;
+        ExplorerObserverLogEventMessage explorerObserverLogEventMessage = 6;
+        ExplorerCoreLogEventMessage explorerCoreLogEventMessage = 7;
     }
 
 }

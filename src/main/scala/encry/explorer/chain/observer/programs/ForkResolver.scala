@@ -14,6 +14,7 @@ import encry.explorer.chain.observer.services.{ ClientService, GatheringService 
 import encry.explorer.core.UrlAddress
 import encry.explorer.core.constants._
 import encry.explorer.core.services.DBReaderService
+import encry.explorer.events.processing.{ ExplorerEvent, RollbackOccurred }
 import fs2.Stream
 import fs2.concurrent.Queue
 import io.estatico.newtype.macros.newtype
@@ -33,7 +34,8 @@ object ForkResolver {
     isChainSyncedRef: Ref[F, Boolean],
     incomingUnreachableUrls: Queue[F, UrlAddress],
     blocksToResolve: Queue[F, HttpApiBlock],
-    blocksMarkAsNonBest: Queue[F, String]
+    blocksMarkAsNonBest: Queue[F, String],
+    eventsQueue: Queue[F, ExplorerEvent]
   ): ForkResolver[F] = new ForkResolver[F] {
 
     override def run: Stream[F, Unit] =
@@ -61,6 +63,7 @@ object ForkResolver {
                    val f: UrlAddress => F[Either[HttpApiErr, HttpApiBlock]] = clientService.getBlockBy(ids._2.value)
                    f
                  }, urlsForRequest)
+        _ <- eventsQueue.enqueue1(RollbackOccurred(blocks.head.header.id.getValue, blocks.head.header.height.value))
         _ <- blocksToResolve.enqueue(Stream.emits(blocks)).compile.drain
         _ <- blocksMarkAsNonBest.enqueue(Stream.emits(forks.map(_._1.value))).compile.drain
       } yield ()
