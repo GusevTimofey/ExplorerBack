@@ -90,3 +90,7 @@ scalacOptions ++= Seq(
 addCompilerPlugin("com.olegpy"      %% "better-monadic-for" % "0.3.1")
 addCompilerPlugin("org.typelevel"   %% "kind-projector"     % "0.11.0" cross CrossVersion.patch)
 addCompilerPlugin("org.scalamacros" % "paradise"            % "2.1.1" cross CrossVersion.full)
+
+PB.targets in Compile := Seq(
+  scalapb.gen() -> (sourceManaged in Compile).value
+)
