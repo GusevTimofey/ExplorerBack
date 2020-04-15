@@ -1,6 +1,15 @@
 package encry.explorer.events
 
 import ExplorerEventMessage.ExplorerEventProtoMessage
+import ExplorerEventMessage.ExplorerEventProtoMessage.EventMessage.{
+  ExplorerCoreLogEventMessage => ECLEM,
+  ExplorerObserverLogEventMessage => EOLEM,
+  ForkOccurredEventMessage => FOEM,
+  NewBlockReceivedEventMessage => NBREV,
+  NewNodeEventMessage => NNEM,
+  RollbackOccurredEventMessage => ROEM,
+  UnavailableNodeEventMessage => UNVM
+}
 import ExplorerEventMessage.ExplorerEventProtoMessage.{
   EventMessage,
   ExplorerCoreLogEventMessage,
@@ -11,17 +20,7 @@ import ExplorerEventMessage.ExplorerEventProtoMessage.{
   RollbackOccurredEventMessage,
   UnavailableNodeEventMessage
 }
-import ExplorerEventMessage.ExplorerEventProtoMessage.EventMessage.{
-  ExplorerCoreLogEventMessage => ECLEM,
-  ExplorerObserverLogEventMessage => EOLEM,
-  ForkOccurredEventMessage => FOEM,
-  NewBlockReceivedEventMessage => NBREV,
-  NewNodeEventMessage => NNEM,
-  RollbackOccurredEventMessage => ROEM,
-  UnavailableNodeEventMessage => UNVM
-}
 import cats.effect.Sync
-import cats.syntax.either._
 import cats.syntax.applicative._
 import fs2.kafka._
 
@@ -85,27 +84,6 @@ package object processing {
           case msg @ ForkOccurred(_, _)          => forkOccurredExplorerEvent.toProto(msg)
         }
       }
-
-    def fromProto(msg: Array[Byte]): Option[ExplorerEvent] =
-      Either.catchNonFatal {
-        val eventMsg = ExplorerEventProtoMessage.parseFrom(msg)
-        def processEventMsg: (EventMessage => Option[ExplorerEvent], EventMessage) => Option[ExplorerEvent] =
-          (serializer: EventMessage => Option[ExplorerEvent], msg: EventMessage) => {
-            val serialized = serializer(msg)
-            require(serialized.isDefined, "Incorrect event message")
-            serialized
-          }
-        eventMsg.eventMessage match {
-          case EventMessage.Empty => throw new Exception("Empty event message")
-          case msg @ UNVM(_)      => processEventMsg(unavailableNodeExplorerEvent.fromProto, msg)
-          case msg @ NBREV(_)     => processEventMsg(newBlockReceivedExplorerEvent.fromProto, msg)
-          case msg @ ROEM(_)      => processEventMsg(rollbackOccurredExplorerEvent.fromProto, msg)
-          case msg @ NNEM(_)      => processEventMsg(newNodeExplorerEvent.fromProto, msg)
-          case msg @ FOEM(_)      => processEventMsg(forkOccurredExplorerEvent.fromProto, msg)
-          case msg @ EOLEM(_)     => processEventMsg(explorerObserverLogEventExplorerEvent.fromProto, msg)
-          case msg @ ECLEM(_)     => processEventMsg(explorerCoreLogEventExplorerEvent.fromProto, msg)
-        }
-      }.toOption.flatten
   }
 
   sealed trait EventSerializer[T] {
