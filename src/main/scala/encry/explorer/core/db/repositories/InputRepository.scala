@@ -2,9 +2,9 @@ package encry.explorer.core.db.repositories
 
 import cats.tagless._
 import cats.tagless.implicits._
-import cats.~>
 import doobie.free.connection.ConnectionIO
 import encry.explorer.core.Id
+import encry.explorer.core.db.algebra.LiftConnectionIO
 import encry.explorer.core.db.models.InputDBModel
 import encry.explorer.core.db.queries.InputsQueries
 
@@ -36,5 +36,5 @@ object InputRepository {
     override def updateIsActiveField(id: Id, isActive: Boolean): ConnectionIO[Int] =
       InputsQueries.updateIsActiveField(id, isActive).run
   }
-  def apply[CI[_]](fk: ConnectionIO ~> CI): InputRepository[CI] = ir.mapK(fk)
+  def apply[CI[_]](implicit LIO: LiftConnectionIO[CI]): InputRepository[CI] = ir.mapK(LIO.liftConnectionIONT)
 }

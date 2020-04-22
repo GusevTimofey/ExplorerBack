@@ -2,10 +2,10 @@ package encry.explorer
 
 import java.util.concurrent.{ Executors, ThreadFactory }
 
+import cats.Parallel
 import cats.effect.{ ConcurrentEffect, ContextShift, ExitCode, Resource, Timer }
 import cats.syntax.flatMap._
 import cats.syntax.functor._
-import cats.{ ~>, Parallel }
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import doobie.free.connection.ConnectionIO
 import doobie.hikari.HikariTransactor
@@ -43,7 +43,7 @@ object AppMain extends TaskApp {
           _                <- logger.info(s"Resources and implicit values were initialised successfully.")
           bestChainBlocks  <- Queue.bounded[F, HttpApiBlock](sr.encrySettings.rollbackMaxHeight * 2)
           forkBlocks       <- Queue.bounded[F, String](sr.encrySettings.rollbackMaxHeight)
-          (hr, ir, or, tr) = repositories(liftConnectionIOInstance.liftConnectionIONT)
+          (hr, ir, or, tr) = repositories
           _                <- logger.info(s"All repositories were initialised successfully.")
           dbReader         = DBReaderService[F, ConnectionIO](hr, ht.trans)
           _                <- logger.info(s"DB reader was initialised successfully.")
@@ -76,11 +76,11 @@ object AppMain extends TaskApp {
       ht     <- DB[F](settings)
     } yield (client, ht, settings)
 
-  private def repositories(xa: ConnectionIO ~> ConnectionIO) =
+  private def repositories =
     (
-      HeaderRepository[ConnectionIO](xa),
-      InputRepository[ConnectionIO](xa),
-      OutputRepository[ConnectionIO](xa),
-      TransactionRepository[ConnectionIO](xa)
+      HeaderRepository[ConnectionIO],
+      InputRepository[ConnectionIO],
+      OutputRepository[ConnectionIO],
+      TransactionRepository[ConnectionIO]
     )
 }

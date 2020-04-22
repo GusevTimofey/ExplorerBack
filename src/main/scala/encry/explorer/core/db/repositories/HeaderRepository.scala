@@ -2,11 +2,11 @@ package encry.explorer.core.db.repositories
 
 import cats.tagless._
 import cats.tagless.implicits._
-import cats.~>
 import doobie.free.connection.ConnectionIO
+import encry.explorer.core.db.algebra.LiftConnectionIO
 import encry.explorer.core.db.models.HeaderDBModel
 import encry.explorer.core.db.queries.HeadersQueries
-import encry.explorer.core.{ Id, _ }
+import encry.explorer.core.{Id, _}
 
 @autoFunctorK
 trait HeaderRepository[CI[_]] {
@@ -56,5 +56,5 @@ object HeaderRepository {
       HeadersQueries.getLast(quantity).to[List]
   }
 
-  def apply[CI[_]](fk: ConnectionIO ~> CI): HeaderRepository[CI] = hr.mapK(fk)
+  def apply[CI[_]](implicit LIO: LiftConnectionIO[CI]): HeaderRepository[CI] = hr.mapK(LIO.liftConnectionIONT)
 }

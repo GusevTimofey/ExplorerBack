@@ -2,9 +2,9 @@ package encry.explorer.core.db.repositories
 
 import cats.tagless._
 import cats.tagless.implicits._
-import cats.~>
 import doobie.free.connection.ConnectionIO
 import encry.explorer.core.Id
+import encry.explorer.core.db.algebra.LiftConnectionIO
 import encry.explorer.core.db.models.TransactionDBModel
 import encry.explorer.core.db.queries.TransactionsQueries
 
@@ -37,5 +37,5 @@ object TransactionRepository {
       TransactionsQueries.insertMany(transactions)
   }
 
-  def apply[CI[_]](fk: ConnectionIO ~> CI): TransactionRepository[CI] = tr.mapK(fk)
+  def apply[CI[_]](implicit LIO: LiftConnectionIO[CI]): TransactionRepository[CI] = tr.mapK(LIO.liftConnectionIONT)
 }

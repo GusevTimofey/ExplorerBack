@@ -2,8 +2,8 @@ package encry.explorer.core.db.repositories
 
 import cats.tagless._
 import cats.tagless.implicits._
-import cats.~>
 import doobie.free.connection.ConnectionIO
+import encry.explorer.core.db.algebra.LiftConnectionIO
 import encry.explorer.core.db.models.OutputDBModel
 import encry.explorer.core.db.queries.OutputsQueries
 import encry.explorer.core.{ ContractHash, Id }
@@ -36,5 +36,5 @@ object OutputRepository {
       OutputsQueries.insertMany(outputs)
   }
 
-  def apply[CI[_]](fk: ConnectionIO ~> CI): OutputRepository[CI] = or.mapK(fk)
+  def apply[CI[_]](implicit LIO: LiftConnectionIO[CI]): OutputRepository[CI] = or.mapK(LIO.liftConnectionIONT)
 }
