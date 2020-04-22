@@ -7,7 +7,6 @@ import cats.syntax.applicative._
 import cats.syntax.either._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
-import cats.{ Applicative, Monad }
 import encry.explorer.chain.observer.errors.HttpApiErr
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
 import encry.explorer.chain.observer.services.{ ClientService, GatheringService }
@@ -26,7 +25,7 @@ trait ForkResolver[F[_]] {
 }
 
 object ForkResolver {
-  def apply[F[_]: Timer: Applicative: Monad: Sync](
+  def apply[F[_]: Timer: Sync](
     gatheringService: GatheringService[F],
     clientService: ClientService[F],
     dbReaderService: DBReaderService[F],

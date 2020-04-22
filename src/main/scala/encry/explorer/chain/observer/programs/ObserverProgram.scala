@@ -2,7 +2,7 @@ package encry.explorer.chain.observer.programs
 
 import cats.Parallel
 import cats.effect.concurrent.Ref
-import cats.effect.{ Concurrent, Sync, Timer }
+import cats.effect.{ Concurrent, Timer }
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
@@ -22,7 +22,7 @@ trait ObserverProgram[F[_]] {
 }
 
 object ObserverProgram {
-  def apply[F[_]: Sync: Logger: Timer: Parallel: Concurrent](
+  def apply[F[_]: Logger: Timer: Parallel: Concurrent](
     client: Client[F],
     dbReaderService: DBReaderService[F],
     blocksMarkAsNonBest: Queue[F, String],

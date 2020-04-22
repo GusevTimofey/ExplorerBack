@@ -6,29 +6,29 @@ import encry.explorer.core.db.models.OutputDBModel
 import encry.explorer.core.db.queries.OutputsQueries
 import encry.explorer.core.{ ContractHash, Id }
 
-trait OutputRepository[F[_]] {
+trait OutputRepository[CI[_]] {
 
-  def getBy(id: Id): F[Option[OutputDBModel]]
+  def getBy(id: Id): CI[Option[OutputDBModel]]
 
-  def getByC(contractHash: ContractHash): F[Option[OutputDBModel]]
+  def getByC(contractHash: ContractHash): CI[Option[OutputDBModel]]
 
-  def getByTransaction(id: Id): F[Option[OutputDBModel]]
+  def getByTransaction(id: Id): CI[Option[OutputDBModel]]
 
-  def insertMany(outputs: List[OutputDBModel]): F[Int]
+  def insertMany(outputs: List[OutputDBModel]): CI[Int]
 }
 
 object OutputRepository {
-  def apply[F[_]: LiftConnectionIO]: OutputRepository[F] = new OutputRepository[F] {
-    override def getBy(id: Id): F[Option[OutputDBModel]] =
-      OutputsQueries.getBy(id).option.liftF
+  def apply[CI[_]: LiftConnectionIO]: OutputRepository[CI] = new OutputRepository[CI] {
+    override def getBy(id: Id): CI[Option[OutputDBModel]] =
+      OutputsQueries.getBy(id).option.liftEffect
 
-    override def getByC(contractHash: ContractHash): F[Option[OutputDBModel]] =
-      OutputsQueries.getByC(contractHash).option.liftF
+    override def getByC(contractHash: ContractHash): CI[Option[OutputDBModel]] =
+      OutputsQueries.getByC(contractHash).option.liftEffect
 
-    override def getByTransaction(id: Id): F[Option[OutputDBModel]] =
-      OutputsQueries.getByTransaction(id).option.liftF
+    override def getByTransaction(id: Id): CI[Option[OutputDBModel]] =
+      OutputsQueries.getByTransaction(id).option.liftEffect
 
-    override def insertMany(outputs: List[OutputDBModel]): F[Int] =
-      OutputsQueries.insertMany(outputs).liftF
+    override def insertMany(outputs: List[OutputDBModel]): CI[Int] =
+      OutputsQueries.insertMany(outputs).liftEffect
   }
 }

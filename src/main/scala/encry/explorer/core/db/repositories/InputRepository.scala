@@ -6,30 +6,30 @@ import encry.explorer.core.db.algebra.LiftConnectionIO.syntaxConnectionIO._
 import encry.explorer.core.db.models.InputDBModel
 import encry.explorer.core.db.queries.InputsQueries
 
-trait InputRepository[F[_]] {
+trait InputRepository[CI[_]] {
 
-  def getBy(id: Id): F[Option[InputDBModel]]
+  def getBy(id: Id): CI[Option[InputDBModel]]
 
-  def getByTransaction(id: Id): F[Option[InputDBModel]]
+  def getByTransaction(id: Id): CI[Option[InputDBModel]]
 
-  def insertMany(inputs: List[InputDBModel]): F[Int]
+  def insertMany(inputs: List[InputDBModel]): CI[Int]
 
-  def updateIsActiveField(id: Id, isActive: Boolean): F[Int]
+  def updateIsActiveField(id: Id, isActive: Boolean): CI[Int]
 
 }
 
 object InputRepository {
-  def apply[F[_]: LiftConnectionIO]: InputRepository[F] = new InputRepository[F] {
-    override def getBy(id: Id): F[Option[InputDBModel]] =
-      InputsQueries.getBy(id).option.liftF
+  def apply[CI[_]: LiftConnectionIO]: InputRepository[CI] = new InputRepository[CI] {
+    override def getBy(id: Id): CI[Option[InputDBModel]] =
+      InputsQueries.getBy(id).option.liftEffect
 
-    override def getByTransaction(id: Id): F[Option[InputDBModel]] =
-      InputsQueries.getByTransaction(id).option.liftF
+    override def getByTransaction(id: Id): CI[Option[InputDBModel]] =
+      InputsQueries.getByTransaction(id).option.liftEffect
 
-    override def insertMany(inputs: List[InputDBModel]): F[Int] =
-      InputsQueries.insertMany(inputs).liftF
+    override def insertMany(inputs: List[InputDBModel]): CI[Int] =
+      InputsQueries.insertMany(inputs).liftEffect
 
-    override def updateIsActiveField(id: Id, isActive: Boolean): F[Int] =
-      InputsQueries.updateIsActiveField(id, isActive).run.liftF
+    override def updateIsActiveField(id: Id, isActive: Boolean): CI[Int] =
+      InputsQueries.updateIsActiveField(id, isActive).run.liftEffect
   }
 }

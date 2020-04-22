@@ -62,18 +62,18 @@ object ClientService {
       }
 
     override def getBlockBy(id: String)(from: UrlAddress): F[Either[HttpApiErr, HttpApiBlock]] =
-      doRequestOfOption[HttpApiBlock](s"$from/history/$id", from)
+      doRequestOfOption[HttpApiBlock](s"$from/history/$id")
 
     private def getInfoFrame(url: UrlAddress, optionalInfo: String = ""): F[Either[HttpApiErr, HttpApiNodeInfo]] =
-      doRequestOfOption[HttpApiNodeInfo](s"$url/info", url, optionalInfo)
+      doRequestOfOption[HttpApiNodeInfo](s"$url/info", optionalInfo)
 
     override def getClientInfo(from: UrlAddress): F[Either[HttpApiErr, HttpApiNodeInfo]] = getInfoFrame(from)
 
     override def getBestFullHeight(from: UrlAddress): F[Either[HttpApiErr, Int]] =
-      getInfoFrame(from, optionalInfo = s"/extract/fullHeight").map { _.map { _.fullHeight } }
+      getInfoFrame(from, optionalInfo = s"/extract/fullHeight").map(_.map(_.fullHeight))
 
     override def getBestHeadersHeight(from: UrlAddress): F[Either[HttpApiErr, Int]] =
-      getInfoFrame(from, optionalInfo = s"extract/headersHeight").map { _.map { _.headersHeight } }
+      getInfoFrame(from, optionalInfo = s"extract/headersHeight").map(_.map(_.headersHeight))
 
     private def doRequestOfList[R: Decoder](request: String, from: UrlAddress): F[Either[HttpApiErr, List[R]]] =
       retryRequest(
@@ -87,13 +87,11 @@ object ClientService {
             case Nil  => NoSuchElementErr.asLeft[List[R]]
             case list => list.asRight[HttpApiErr]
           },
-        request,
-        from
+        request
       )
 
     private def doRequestOfOption[R: Decoder](
       request: String,
-      from: UrlAddress,
       optionalRequestInfo: String = ""
     ): F[Either[HttpApiErr, R]] =
       retryRequest(
@@ -104,16 +102,14 @@ object ClientService {
               Logger[F].info(s"Request $request failed with cause $cause.").map(_ => none[R])
           }
           .map(Either.fromOption(_, NoSuchElementErr)),
-        request + optionalRequestInfo,
-        from
+        request + optionalRequestInfo
       )
 
     private def getRequest(url: String): Request[F] = Request[F](Method.GET, Uri.unsafeFromString(url))
 
     private def retryRequest[M](
       request: F[Either[HttpApiErr, M]],
-      requestContent: String,
-      urlAddress: UrlAddress
+      requestContent: String
     ): F[Either[HttpApiErr, M]] =
       request
         .retryingOnAllErrors(
@@ -123,7 +119,7 @@ object ClientService {
               s"Failed to perform request: $requestContent. " +
                 s"Retry details are: ${retryDetailsLogMessage(details)}. " +
                 s"Going to retry this request again."
-          )
+            )
         )
         .flatTap(result => Logger[F].debug(s"Request $requestContent finished successfully. Result is: $result."))
         .handleErrorWith { _: Throwable =>
