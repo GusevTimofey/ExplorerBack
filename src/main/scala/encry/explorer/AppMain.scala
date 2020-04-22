@@ -2,17 +2,16 @@ package encry.explorer
 
 import java.util.concurrent.{ Executors, ThreadFactory }
 
-import cats.Parallel
 import cats.effect.{ ConcurrentEffect, ContextShift, ExitCode, Resource, Timer }
 import cats.syntax.flatMap._
 import cats.syntax.functor._
+import cats.{ ~>, Parallel }
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import doobie.free.connection.ConnectionIO
 import doobie.hikari.HikariTransactor
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
 import encry.explorer.chain.observer.programs.ObserverProgram
 import encry.explorer.core.db.DB
-import encry.explorer.core.db.algebra.LiftConnectionIO
 import encry.explorer.core.db.algebra.LiftConnectionIO.instances._
 import encry.explorer.core.db.repositories.{
   HeaderRepository,
@@ -44,12 +43,11 @@ object AppMain extends TaskApp {
           _                <- logger.info(s"Resources and implicit values were initialised successfully.")
           bestChainBlocks  <- Queue.bounded[F, HttpApiBlock](sr.encrySettings.rollbackMaxHeight * 2)
           forkBlocks       <- Queue.bounded[F, String](sr.encrySettings.rollbackMaxHeight)
-          (ir, or, tr) = repositories[F, ConnectionIO]
+          (hr, ir, or, tr) = repositories(liftConnectionIOInstance.liftConnectionIONT)
           _                <- logger.info(s"All repositories were initialised successfully.")
-          hr11             = HeaderRepository[ConnectionIO](liftConnectionIOInstance.liftConnectionIONT)
-          dbReader         = DBReaderService[F, ConnectionIO](hr11, ht.trans)
+          dbReader         = DBReaderService[F, ConnectionIO](hr, ht.trans)
           _                <- logger.info(s"DB reader was initialised successfully.")
-          db               = DBService[F, ConnectionIO](bestChainBlocks, forkBlocks, hr11, ir, or, tr, ht.trans)
+          db               = DBService[F, ConnectionIO](bestChainBlocks, forkBlocks, hr, ir, or, tr, ht.trans)
           _                <- logger.info(s"DB service was created successfully.")
           dbHeight         <- db.getBestHeightFromDB
           _                <- logger.info(s"Last height in the explorer DB is: $dbHeight.")
@@ -78,6 +76,11 @@ object AppMain extends TaskApp {
       ht     <- DB[F](settings)
     } yield (client, ht, settings)
 
-  private def repositories[F[_], CI[_]: LiftConnectionIO] =
-    (InputRepository[CI], OutputRepository[CI], TransactionRepository[CI])
+  private def repositories(xa: ConnectionIO ~> ConnectionIO) =
+    (
+      HeaderRepository[ConnectionIO](xa),
+      InputRepository[ConnectionIO](xa),
+      OutputRepository[ConnectionIO](xa),
+      TransactionRepository[ConnectionIO](xa)
+    )
 }

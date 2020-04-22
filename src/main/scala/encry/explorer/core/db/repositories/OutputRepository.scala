@@ -1,11 +1,14 @@
 package encry.explorer.core.db.repositories
 
-import encry.explorer.core.db.algebra.LiftConnectionIO
-import encry.explorer.core.db.algebra.LiftConnectionIO.syntaxConnectionIO._
+import cats.tagless._
+import cats.tagless.implicits._
+import cats.~>
+import doobie.free.connection.ConnectionIO
 import encry.explorer.core.db.models.OutputDBModel
 import encry.explorer.core.db.queries.OutputsQueries
 import encry.explorer.core.{ ContractHash, Id }
 
+@autoFunctorK
 trait OutputRepository[CI[_]] {
 
   def getBy(id: Id): CI[Option[OutputDBModel]]
@@ -18,17 +21,20 @@ trait OutputRepository[CI[_]] {
 }
 
 object OutputRepository {
-  def apply[CI[_]: LiftConnectionIO]: OutputRepository[CI] = new OutputRepository[CI] {
-    override def getBy(id: Id): CI[Option[OutputDBModel]] =
-      OutputsQueries.getBy(id).option.liftEffect
 
-    override def getByC(contractHash: ContractHash): CI[Option[OutputDBModel]] =
-      OutputsQueries.getByC(contractHash).option.liftEffect
+  private object or extends OutputRepository[ConnectionIO] {
+    override def getBy(id: Id): ConnectionIO[Option[OutputDBModel]] =
+      OutputsQueries.getBy(id).option
 
-    override def getByTransaction(id: Id): CI[Option[OutputDBModel]] =
-      OutputsQueries.getByTransaction(id).option.liftEffect
+    override def getByC(contractHash: ContractHash): ConnectionIO[Option[OutputDBModel]] =
+      OutputsQueries.getByC(contractHash).option
 
-    override def insertMany(outputs: List[OutputDBModel]): CI[Int] =
-      OutputsQueries.insertMany(outputs).liftEffect
+    override def getByTransaction(id: Id): ConnectionIO[Option[OutputDBModel]] =
+      OutputsQueries.getByTransaction(id).option
+
+    override def insertMany(outputs: List[OutputDBModel]): ConnectionIO[Int] =
+      OutputsQueries.insertMany(outputs)
   }
+
+  def apply[CI[_]](fk: ConnectionIO ~> CI): OutputRepository[CI] = or.mapK(fk)
 }

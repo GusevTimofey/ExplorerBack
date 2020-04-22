@@ -1,11 +1,14 @@
 package encry.explorer.core.db.repositories
 
+import cats.tagless._
+import cats.tagless.implicits._
+import cats.~>
+import doobie.free.connection.ConnectionIO
 import encry.explorer.core.Id
-import encry.explorer.core.db.algebra.LiftConnectionIO
-import encry.explorer.core.db.algebra.LiftConnectionIO.syntaxConnectionIO._
 import encry.explorer.core.db.models.TransactionDBModel
 import encry.explorer.core.db.queries.TransactionsQueries
 
+@autoFunctorK
 trait TransactionRepository[CI[_]] {
 
   def getBy(id: Id): CI[Option[TransactionDBModel]]
@@ -20,18 +23,19 @@ trait TransactionRepository[CI[_]] {
 
 object TransactionRepository {
 
-  def apply[CI[_]: LiftConnectionIO]: TransactionRepository[CI] =
-    new TransactionRepository[CI] {
-      override def getBy(id: Id): CI[Option[TransactionDBModel]] =
-        TransactionsQueries.getBy(id).option.liftEffect
+  private object tr extends TransactionRepository[ConnectionIO] {
+    override def getBy(id: Id): ConnectionIO[Option[TransactionDBModel]] =
+      TransactionsQueries.getBy(id).option
 
-      override def getByHeader(id: Id): CI[Option[TransactionDBModel]] =
-        TransactionsQueries.getByHeader(id).option.liftEffect
+    override def getByHeader(id: Id): ConnectionIO[Option[TransactionDBModel]] =
+      TransactionsQueries.getByHeader(id).option
 
-      override def insert(transaction: TransactionDBModel): CI[Int] =
-        TransactionsQueries.insert(transaction).run.liftEffect
+    override def insert(transaction: TransactionDBModel): ConnectionIO[Int] =
+      TransactionsQueries.insert(transaction).run
 
-      override def insertMany(transactions: List[TransactionDBModel]): CI[Int] =
-        TransactionsQueries.insertMany(transactions).liftEffect
-    }
+    override def insertMany(transactions: List[TransactionDBModel]): ConnectionIO[Int] =
+      TransactionsQueries.insertMany(transactions)
+  }
+
+  def apply[CI[_]](fk: ConnectionIO ~> CI): TransactionRepository[CI] = tr.mapK(fk)
 }
