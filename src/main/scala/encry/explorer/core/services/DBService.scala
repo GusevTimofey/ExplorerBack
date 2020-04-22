@@ -5,7 +5,7 @@ import cats.instances.try_._
 import cats.syntax.applicative._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
-import cats.{ ~>, MonadError }
+import cats.{ ~>, Monad }
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
 import encry.explorer.core.Id
 import encry.explorer.core.db.algebra.LiftConnectionIO
@@ -29,7 +29,7 @@ trait DBService[F[_]] {
 }
 
 object DBService {
-  def apply[F[_]: Timer: Concurrent: Logger, CI[_]: MonadError[*[_], Throwable]: LiftConnectionIO](
+  def apply[F[_]: Timer: Concurrent: Logger, CI[_]: Monad: LiftConnectionIO](
     blocksToInsert: Queue[F, HttpApiBlock],
     forkBlocks: Queue[F, String],
     headerRepository: HeaderRepository[CI],

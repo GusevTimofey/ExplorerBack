@@ -28,7 +28,7 @@ import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import monix.eval.{ Task, TaskApp }
 import org.http4s.client.Client
 import org.http4s.client.blaze.BlazeClientBuilder
-
+import cats.free.Free.catsFreeMonadForFree
 import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor }
 
 object AppMain extends TaskApp {
