@@ -1,7 +1,7 @@
 package encry.explorer.core.db.models
 
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
-import encry.explorer.chain.observer.http.api.models.boxes.HttpApiAssetBox
+import encry.explorer.chain.observer.http.api.models.boxes.HttpApiBox.HttpApiAssetBox
 import encry.explorer.core._
 
 final case class HeaderDBModel(

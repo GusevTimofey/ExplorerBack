@@ -63,6 +63,7 @@ val tapir: Seq[ModuleID] = Seq(
 )
 
 libraryDependencies ++= Seq(
+  "org.typelevel"         %% "cats-tagless-macros"    % "0.11",
   "io.monix"              %% "monix"                  % "3.1.0",
   "io.chrisdavenport"     %% "log4cats-slf4j"         % "0.4.0-M2",
   "io.estatico"           %% "newtype"                % "0.4.3",

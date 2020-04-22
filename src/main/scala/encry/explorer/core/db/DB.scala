@@ -9,7 +9,7 @@ import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
 import encry.explorer.core.settings.ExplorerSettings
 
-import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor }
+import scala.concurrent.ExecutionContext
 
 object DB {
 

@@ -1,9 +1,9 @@
 package encry.explorer.core.db.models
 
 import encry.explorer.chain.observer.http.api.models.HttpApiTransaction
-import encry.explorer.chain.observer.http.api.models.boxes.{
+import encry.explorer.chain.observer.http.api.models.boxes.HttpApiBox
+import encry.explorer.chain.observer.http.api.models.boxes.HttpApiBox.{
   HttpApiAssetBox,
-  HttpApiBox,
   HttpApiDataBox,
   HttpApiTokenIssuingBox
 }
@@ -36,7 +36,7 @@ object OutputDBModel {
           nonce,
           value,
           "",
-          tokenId.map(_.value.toString).getOrElse("")
+          tokenId.map(_.value).getOrElse("")
         )
       case HttpApiDataBox(outputType, id, proposition, nonce, data) =>
         OutputDBModel(
@@ -48,7 +48,7 @@ object OutputDBModel {
           isActive = true,
           nonce,
           Amount(0),
-          data.value.toString,
+          data.value,
           ""
         )
       case HttpApiTokenIssuingBox(outputType, id, tokenId, proposition, nonce, amount) =>
@@ -62,12 +62,10 @@ object OutputDBModel {
           nonce,
           amount,
           "",
-          tokenId.value.toString
+          tokenId.value
         )
     }
 
   def fromHttpApi(inputTransaction: HttpApiTransaction, headerId: Id): List[OutputDBModel] =
-    inputTransaction.outputs.map { output =>
-      fromOutput(inputTransaction.id, output, headerId)
-    }
+    inputTransaction.outputs.map(output => fromOutput(inputTransaction.id, output, headerId))
 }
