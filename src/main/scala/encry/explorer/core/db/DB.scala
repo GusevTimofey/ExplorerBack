@@ -7,15 +7,15 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.zaxxer.hikari.HikariDataSource
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
-import encry.explorer.core.settings.ExplorerSettings
+import encry.explorer.core.settings.DBSettings
 
 import scala.concurrent.ExecutionContext
 
 object DB {
 
-  def apply[F[_]: Async: ContextShift](SR: ExplorerSettings): Resource[F, HikariTransactor[F]] =
+  def apply[F[_]: Async: ContextShift](SR: DBSettings): Resource[F, HikariTransactor[F]] =
     for {
-      ec <- ExecutionContexts.fixedThreadPool[F](SR.dbSettings.connectionsPoolSize)
+      ec <- ExecutionContexts.fixedThreadPool[F](SR.connectionsPoolSize)
       tf: ThreadFactory = new ThreadFactoryBuilder()
         .setNameFormat("blocker-doobie-%d")
         .setDaemon(false)
@@ -24,10 +24,10 @@ object DB {
       ecb = ExecutionContext.fromExecutor(Executors.newCachedThreadPool(tf))
       bc  = Blocker.liftExecutionContext(ecb)
       xt <- HikariTransactor.newHikariTransactor[F](
-             SR.dbSettings.jdbcDriver,
-             SR.dbSettings.dbUrl,
-             SR.dbSettings.login,
-             SR.dbSettings.password,
+             SR.jdbcDriver,
+             SR.dbUrl,
+             SR.login,
+             SR.password,
              ec,
              bc
            )
@@ -38,8 +38,8 @@ object DB {
               ds setMinimumIdle 2
               ds setIdleTimeout 300000
               ds setMaxLifetime 600000
-              ds setPoolName SR.dbSettings.poolName
-              ds setMaximumPoolSize SR.dbSettings.hikaryPoolSize
+              ds setPoolName SR.poolName
+              ds setMaximumPoolSize SR.hikaryPoolSize
             }
           })
     } yield xt

@@ -1,87 +1,59 @@
 package encry.explorer
 
-import java.util.concurrent.{ Executors, ThreadFactory }
-
 import cats.Parallel
-import cats.effect.{ ConcurrentEffect, ContextShift, ExitCode, Resource, Timer }
+import cats.effect.{ ConcurrentEffect, ContextShift, ExitCode, Timer }
+import cats.free.Free.catsFreeMonadForFree
 import cats.syntax.flatMap._
 import cats.syntax.functor._
-import com.google.common.util.concurrent.ThreadFactoryBuilder
 import doobie.free.connection.ConnectionIO
-import doobie.hikari.HikariTransactor
-import encry.explorer.chain.observer.http.api.models.HttpApiBlock
 import encry.explorer.chain.observer.programs.ObserverProgram
-import encry.explorer.core.db.DB
 import encry.explorer.core.db.algebra.LiftConnectionIO.instances._
-import encry.explorer.core.db.repositories.{
-  HeaderRepository,
-  InputRepository,
-  OutputRepository,
-  TransactionRepository
-}
-import encry.explorer.core.services.{ DBReaderService, DBService, SettingsReader }
-import encry.explorer.core.settings.ExplorerSettings
-import encry.explorer.events.processing.{ EventsProducer, ExplorerEvent }
-import fs2.concurrent.Queue
-import io.chrisdavenport.log4cats.SelfAwareStructuredLogger
-import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
+import encry.explorer.core.services.{ DBReaderService, DBService }
+import encry.explorer.env._
+import encry.explorer.events.processing.EventsProducer
 import monix.eval.{ Task, TaskApp }
-import org.http4s.client.Client
-import org.http4s.client.blaze.BlazeClientBuilder
-import cats.free.Free.catsFreeMonadForFree
-import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor }
+import tofu.{ Context, HasContext }
 
 object AppMain extends TaskApp {
-  override def run(args: List[String]): Task[ExitCode] = runProgram[Task]
+  override def run(args: List[String]): Task[ExitCode] = runExplorer[Task]
 
-  private def runProgram[F[_]: ConcurrentEffect: ContextShift: Timer: Parallel] =
-    resources[F].use {
-      case (client, ht, sr) =>
-        (for {
-          implicit0(logger: SelfAwareStructuredLogger[F]) <- Slf4jLogger.create[F]
-
-          //env = Env
-          _                <- logger.info(s"Resources and implicit values were initialised successfully.")
-          bestChainBlocks  <- Queue.bounded[F, HttpApiBlock](sr.encrySettings.rollbackMaxHeight * 2)
-          forkBlocks       <- Queue.bounded[F, String](sr.encrySettings.rollbackMaxHeight)
-          (hr, ir, or, tr) = repositories
-          _                <- logger.info(s"All repositories were initialised successfully.")
-          dbReader         = DBReaderService[F, ConnectionIO](hr, ht.trans)
-          _                <- logger.info(s"DB reader was initialised successfully.")
-          db               = DBService[F, ConnectionIO](bestChainBlocks, forkBlocks, hr, ir, or, tr, ht.trans)
-          _                <- logger.info(s"DB service was created successfully.")
-          dbHeight         <- db.getBestHeightFromDB
-          _                <- logger.info(s"Last height in the explorer DB is: $dbHeight.")
-          eventsQueue      <- Queue.unbounded[F, ExplorerEvent]
-          ep               = EventsProducer[F](eventsQueue, sr)
-          op               <- ObserverProgram[F](client, dbReader, forkBlocks, bestChainBlocks, eventsQueue, dbHeight, sr)
-          _                <- logger.info(s"Chain observer program stated successfully.")
-          _                <- (op.run concurrently db.run concurrently ep.runProducer).compile.drain
-          _                <- logger.info(s"Explorer app has been started. Last height in the data base is: $dbHeight.")
-        } yield ()).as(ExitCode.Success)
+  private def runExplorer[F[_]: ConcurrentEffect: ContextShift: Parallel: Timer]: F[ExitCode] =
+    AppContext.create[F, ConnectionIO].use { cxt =>
+      implicit val context: HasContext[F, AppContext[F, ConnectionIO]] =
+        Context.const[F, AppContext[F, ConnectionIO]](cxt)
+      runPrograms[F].as(ExitCode.Success)
     }
 
-  private def resources[F[_]: ConcurrentEffect: ContextShift]
-    : Resource[F, (Client[F], HikariTransactor[F], ExplorerSettings)] =
+  private def runPrograms[F[_]: ConcurrentEffect: Timer: ContextShift: Parallel](
+    implicit contextApplication: ContextApplication[F, ConnectionIO]
+  ): F[Unit] =
     for {
-      settings <- Resource.liftF(SettingsReader.read[F])
-      tf: ThreadFactory = new ThreadFactoryBuilder()
-        .setNameFormat("http-api-thread-pool-%d")
-        .setDaemon(false)
-        .setPriority(Thread.NORM_PRIORITY)
-        .build()
-      ec: ExecutionContextExecutor = ExecutionContext.fromExecutor(
-        Executors.newFixedThreadPool(settings.httpClientSettings.observerClientThreadsQuantity, tf)
-      )
-      client <- BlazeClientBuilder[F](ec).resource
-      ht     <- DB[F](settings)
-    } yield (client, ht, settings)
-
-  private def repositories =
-    (
-      HeaderRepository[ConnectionIO],
-      InputRepository[ConnectionIO],
-      OutputRepository[ConnectionIO],
-      TransactionRepository[ConnectionIO]
-    )
+      sr <- contextApplication.ask(_.explorerSettings)
+      implicit0(dbC: HasContext[F, DBContext[ConnectionIO, F]]) <- contextApplication
+                                                                    .ask(_.dbContext)
+                                                                    .map(
+                                                                      Context.const[F, DBContext[ConnectionIO, F]](_)
+                                                                    )
+      implicit0(sharedQC: HasContext[F, SharedQueuesContext[F]]) <- contextApplication
+                                                                     .ask(_.sharedQueuesContext)
+                                                                     .map(Context.const[F, SharedQueuesContext[F]](_))
+      implicit0(loggingC: HasContext[F, LoggerContext[F]]) <- contextApplication
+                                                               .ask(_.logger)
+                                                               .map(Context.const[F, LoggerContext[F]](_))
+      implicit0(httpClientC: HasContext[F, HttpClientContext[F]]) <- contextApplication
+                                                                      .ask(_.httpClientContext)
+                                                                      .map(Context.const[F, HttpClientContext[F]](_))
+      implicit0(observerQC: HasContext[F, HttpClientQueuesContext[F]]) <- contextApplication
+                                                                           .ask(_.httpClientQueuesContext)
+                                                                           .map(
+                                                                             Context
+                                                                               .const[F, HttpClientQueuesContext[F]](_)
+                                                                           )
+      dbReader <- contextApplication.askF(l => DBReaderService[F, ConnectionIO](l.dbContext.transactor.trans))
+      db       <- contextApplication.askF(l => DBService[F, ConnectionIO](l.dbContext.transactor.trans))
+      dbHeight <- db.getBestHeightFromDB
+      ep       <- EventsProducer[F](sr)
+      op       <- ObserverProgram[F](dbReader, dbHeight, sr)
+      _        <- (op.run concurrently db.run concurrently ep.runProducer).compile.drain
+    } yield ()
 }

@@ -65,6 +65,8 @@ val tapir: Seq[ModuleID] = Seq(
 libraryDependencies ++= Seq(
   "ru.tinkoff"            %% "tofu-core"              % "0.7.4",
   "ru.tinkoff"            %% "tofu-env"               % "0.7.4",
+  "ru.tinkoff"            %% "tofu-optics-core"       % "0.7.4",
+  "ru.tinkoff"            %% "tofu-optics-macro"      % "0.7.4",
   "org.typelevel"         %% "cats-tagless-macros"    % "0.11",
   "io.monix"              %% "monix"                  % "3.1.0",
   "io.chrisdavenport"     %% "log4cats-slf4j"         % "0.4.0-M2",

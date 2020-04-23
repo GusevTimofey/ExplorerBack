@@ -5,20 +5,20 @@ import java.util.Date
 
 import cats.effect.concurrent.Ref
 import cats.effect.{ Concurrent, Timer }
-import cats.instances.try_._
 import cats.instances.list._
-import cats.syntax.functor._
-import cats.syntax.flatMap._
-import cats.syntax.traverse._
+import cats.instances.try_._
 import cats.syntax.applicative._
+import cats.syntax.flatMap._
+import cats.syntax.functor._
+import cats.syntax.traverse._
 import encry.explorer.chain.observer.BanTime
 import encry.explorer.chain.observer.http.api.models.HttpApiNodeInfo
 import encry.explorer.chain.observer.services.{ ClientService, GatheringService }
 import encry.explorer.core.UrlAddress
 import encry.explorer.core.settings.ExplorerSettings
-import encry.explorer.events.processing.{ ExplorerEvent, NewNode, UnavailableNode }
+import encry.explorer.env.{ ContextClientQueues, ContextSharedQueues }
+import encry.explorer.events.processing.{ NewNode, UnavailableNode }
 import fs2.Stream
-import fs2.concurrent.Queue
 import io.chrisdavenport.log4cats.Logger
 
 import scala.concurrent.duration._
@@ -36,18 +36,18 @@ object UrlsManager {
   def apply[F[_]: Timer: Concurrent: Logger](
     clientService: ClientService[F],
     gatheringService: GatheringService[F],
-    incomingUnreachableUrls: Queue[F, UrlAddress],
-    incomingUrlStatistic: Queue[F, UrlCurrentState],
-    eventsQueue: Queue[F, ExplorerEvent],
     SR: ExplorerSettings
-  ): F[UrlsManager[F]] =
+  )(implicit sharedQC: ContextSharedQueues[F], clientQC: ContextClientQueues[F]): F[UrlsManager[F]] =
     for {
       localUrlsInfo <- Ref.of[F, Map[UrlAddress, UrlInfo]](
                         SR.httpClientSettings.encryNodes
                           .map(url => UrlAddress.fromString[Try](url).get -> UrlInfo.empty)
                           .toMap
                       )
-      bannedUrls <- Ref.of[F, Map[UrlAddress, BanTime]](Map.empty)
+      incomingUnreachableUrls <- clientQC.ask(_.unreachableUrlsQueue)
+      incomingUrlStatistic    <- clientQC.ask(_.urlStatisticQueue)
+      eventsQueue             <- sharedQC.ask(_.eventsQueue)
+      bannedUrls              <- Ref.of[F, Map[UrlAddress, BanTime]](Map.empty)
     } yield new UrlsManager[F] {
       override def run: Stream[F, Unit] =
         processIncomingUnreachableUrls concurrently cleanupMetered concurrently processIncomingUrlStatistic

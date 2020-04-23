@@ -13,6 +13,7 @@ import encry.explorer.chain.observer.services.{ ClientService, GatheringService 
 import encry.explorer.core.UrlAddress
 import encry.explorer.core.constants._
 import encry.explorer.core.services.DBReaderService
+import encry.explorer.env.{ ContextClientQueues, ContextHttpClient, ContextLogging, ContextSharedQueues }
 import encry.explorer.events.processing.{ ExplorerEvent, RollbackOccurred }
 import fs2.Stream
 import fs2.concurrent.Queue
@@ -30,63 +31,64 @@ object ForkResolver {
     clientService: ClientService[F],
     dbReaderService: DBReaderService[F],
     urlsManagerService: UrlsManager[F],
-    isChainSyncedRef: Ref[F, Boolean],
-    incomingUnreachableUrls: Queue[F, UrlAddress],
-    blocksToResolve: Queue[F, HttpApiBlock],
-    blocksMarkAsNonBest: Queue[F, String],
-    eventsQueue: Queue[F, ExplorerEvent]
-  ): ForkResolver[F] = new ForkResolver[F] {
+    isChainSyncedRef: Ref[F, Boolean]
+  )(implicit sharedQC: ContextSharedQueues[F], clientQC: ContextClientQueues[F]): F[ForkResolver[F]] =
+    for {
+      blocksToResolve     <- sharedQC.ask(_.bestChainBlocks)
+      blocksMarkAsNonBest <- sharedQC.ask(_.forkBlocks)
+      eventsQueue         <- sharedQC.ask(_.eventsQueue)
+    } yield new ForkResolver[F] {
 
-    override def run: Stream[F, Unit] =
-      Stream(()).repeat
-        .covary[F]
-        .metered(30.seconds)
-        .evalMap(_ => isChainSyncedRef.get.flatMap(if (_) resolveForks else ().pure[F]))
+      override def run: Stream[F, Unit] =
+        Stream(()).repeat
+          .covary[F]
+          .metered(30.seconds)
+          .evalMap(_ => isChainSyncedRef.get.flatMap(if (_) resolveForks else ().pure[F]))
 
-    private def resolveForks: F[Unit] =
-      for {
-        lastExplorerIds <- dbReaderService.getLastIds(RollBackHeight)
-        lastDBHeight    <- dbReaderService.getBestHeight.map(_.getOrElse(0))
-        urls            <- urlsManagerService.getAvailableUrls
-        lastNetworkIds  <- gatheringService.gatherAll(clientService.getLastIds(lastDBHeight, RollBackHeight), urls)
-        (forks, urlsForRequest) = computeMostFrequent(lastNetworkIds) match {
-          case Some((ids, urls)) => computeForks(lastExplorerIds.map(_.getValue), ids) -> urls
-          case None              => List.empty                                         -> List.empty
-        }
-        _ <- if (forks.nonEmpty) resolveForks(forks, urlsForRequest) else ().pure[F]
-      } yield ()
-
-    private def resolveForks(forks: List[(ExplorerId, NetworkId)], urlsForRequest: List[UrlAddress]): F[Unit] =
-      for {
-        blocks <- gatheringService.gatherMany(forks.map { ids =>
-                   val f: UrlAddress => F[Either[HttpApiErr, HttpApiBlock]] = clientService.getBlockBy(ids._2.value)
-                   f
-                 }, urlsForRequest)
-        _ <- eventsQueue.enqueue1(RollbackOccurred(blocks.head.header.id.getValue, blocks.head.header.height.value))
-        _ <- blocksToResolve.enqueue(Stream.emits(blocks)).compile.drain
-        _ <- blocksMarkAsNonBest.enqueue(Stream.emits(forks.map(_._1.value))).compile.drain
-      } yield ()
-
-    private def computeMostFrequent[R](list: List[(UrlAddress, R)]): Option[(R, List[UrlAddress])] =
-      Either.catchNonFatal(list.groupBy(_._2).maxBy(_._2.size)).toOption.map {
-        case (r, urlsRaw) => r -> urlsRaw.map(_._1)
-      }
-
-    private def computeForks(
-      explorerIds: List[String],
-      networkIds: List[String]
-    ): List[(ExplorerId, NetworkId)] =
-      if (explorerIds.size != networkIds.size) List.empty[(ExplorerId, NetworkId)]
-      else
-        explorerIds
-          .zip(networkIds)
-          .foldLeft(Chain.empty[(ExplorerId, NetworkId)]) {
-            case (changeIsNeeded, (explorerId, networkId)) if explorerId != networkId =>
-              changeIsNeeded :+ (ExplorerId(explorerId) -> NetworkId(networkId))
-            case (changeIsNeeded, _) => changeIsNeeded
+      private def resolveForks: F[Unit] =
+        for {
+          lastExplorerIds <- dbReaderService.getLastIds(RollBackHeight)
+          lastDBHeight    <- dbReaderService.getBestHeight.map(_.getOrElse(0))
+          urls            <- urlsManagerService.getAvailableUrls
+          lastNetworkIds  <- gatheringService.gatherAll(clientService.getLastIds(lastDBHeight, RollBackHeight), urls)
+          (forks, urlsForRequest) = computeMostFrequent(lastNetworkIds) match {
+            case Some((ids, urls)) => computeForks(lastExplorerIds.map(_.getValue), ids) -> urls
+            case None              => List.empty                                         -> List.empty
           }
-          .toList
-  }
+          _ <- if (forks.nonEmpty) resolveForks(forks, urlsForRequest) else ().pure[F]
+        } yield ()
+
+      private def resolveForks(forks: List[(ExplorerId, NetworkId)], urlsForRequest: List[UrlAddress]): F[Unit] =
+        for {
+          blocks <- gatheringService.gatherMany(forks.map { ids =>
+                     val f: UrlAddress => F[Either[HttpApiErr, HttpApiBlock]] = clientService.getBlockBy(ids._2.value)
+                     f
+                   }, urlsForRequest)
+          _ <- eventsQueue.enqueue1(RollbackOccurred(blocks.head.header.id.getValue, blocks.head.header.height.value))
+          _ <- blocksToResolve.enqueue(Stream.emits(blocks)).compile.drain
+          _ <- blocksMarkAsNonBest.enqueue(Stream.emits(forks.map(_._1.value))).compile.drain
+        } yield ()
+
+      private def computeMostFrequent[R](list: List[(UrlAddress, R)]): Option[(R, List[UrlAddress])] =
+        Either.catchNonFatal(list.groupBy(_._2).maxBy(_._2.size)).toOption.map {
+          case (r, urlsRaw) => r -> urlsRaw.map(_._1)
+        }
+
+      private def computeForks(
+        explorerIds: List[String],
+        networkIds: List[String]
+      ): List[(ExplorerId, NetworkId)] =
+        if (explorerIds.size != networkIds.size) List.empty[(ExplorerId, NetworkId)]
+        else
+          explorerIds
+            .zip(networkIds)
+            .foldLeft(Chain.empty[(ExplorerId, NetworkId)]) {
+              case (changeIsNeeded, (explorerId, networkId)) if explorerId != networkId =>
+                changeIsNeeded :+ (ExplorerId(explorerId) -> NetworkId(networkId))
+              case (changeIsNeeded, _) => changeIsNeeded
+            }
+            .toList
+    }
 
   @newtype final case class ExplorerId(value: String)
   @newtype final case class NetworkId(value: String)
