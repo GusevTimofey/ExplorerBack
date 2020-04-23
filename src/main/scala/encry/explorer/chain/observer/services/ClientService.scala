@@ -11,7 +11,6 @@ import encry.explorer.chain.observer.http.api.models.{ HttpApiBlock, HttpApiNode
 import encry.explorer.core.UrlAddress
 import io.chrisdavenport.log4cats.Logger
 import io.circe._
-import io.circe.generic.auto._
 import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.client.Client
 import org.http4s.{ InvalidMessageBodyFailure, Method, Request, Uri }

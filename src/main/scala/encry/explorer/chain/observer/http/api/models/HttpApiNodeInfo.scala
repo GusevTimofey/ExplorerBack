@@ -1,6 +1,8 @@
 package encry.explorer.chain.observer.http.api.models
 
-final case class HttpApiNodeInfo(
+import io.circe.generic.JsonCodec
+
+@JsonCodec final case class HttpApiNodeInfo(
   name: String,
   stateType: String,
   difficulty: Int,

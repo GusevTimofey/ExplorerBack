@@ -1,3 +1,5 @@
 package encry.explorer.chain.observer.http.api.models
 
-final case class HttpApiBlock(header: HttpApiHeader, payload: HttpApiPayload)
+import io.circe.generic.JsonCodec
+
+@JsonCodec final case class HttpApiBlock(header: HttpApiHeader, payload: HttpApiPayload)
