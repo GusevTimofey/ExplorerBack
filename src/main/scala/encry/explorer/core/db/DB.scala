@@ -39,7 +39,7 @@ object DB {
               ds setIdleTimeout 300000
               ds setMaxLifetime 600000
               ds setPoolName SR.dbSettings.poolName
-              ds setMaximumPoolSize SR.dbSettings.connectionsPoolSize
+              ds setMaximumPoolSize SR.dbSettings.hikaryPoolSize
             }
           })
     } yield xt
