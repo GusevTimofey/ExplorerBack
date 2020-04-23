@@ -2,7 +2,7 @@ name := "ExplorerBack"
 
 version := "0.1"
 
-scalaVersion := "2.12.11"
+scalaVersion := "2.13.1"
 
 val doobieVersion      = "0.8.8"
 val fs2Version         = "2.1.0"
@@ -63,6 +63,8 @@ val tapir: Seq[ModuleID] = Seq(
 )
 
 libraryDependencies ++= Seq(
+  "ru.tinkoff"            %% "tofu-core"              % "0.7.4",
+  "ru.tinkoff"            %% "tofu-env"               % "0.7.4",
   "org.typelevel"         %% "cats-tagless-macros"    % "0.11",
   "io.monix"              %% "monix"                  % "3.1.0",
   "io.chrisdavenport"     %% "log4cats-slf4j"         % "0.4.0-M2",
@@ -70,7 +72,6 @@ libraryDependencies ++= Seq(
   "com.github.pureconfig" %% "pureconfig"             % "0.12.2",
   "com.github.pureconfig" %% "pureconfig-cats-effect" % "0.12.2",
   "com.google.guava"      % "guava"                   % "28.2-jre",
-  "org.encry"             %% "encry-common"           % "0.9.3",
   "com.github.mpilquist"  %% "simulacrum"             % simulacrumVersion,
   "eu.timepit"            %% "refined"                % "0.9.13",
   "com.github.cb372"      %% "cats-retry"             % catsRetryVersion,
@@ -81,16 +82,15 @@ scalacOptions ++= Seq(
   "-language:postfixOps",
   "-language:higherKinds",
   "-language:implicitConversions",
-  "-Ypartial-unification",
+  "-Ymacro-annotations",
   "-Xfatal-warnings",
   "-unchecked",
   "-feature",
   "-deprecation"
 )
 
-addCompilerPlugin("com.olegpy"      %% "better-monadic-for" % "0.3.1")
-addCompilerPlugin("org.typelevel"   %% "kind-projector"     % "0.11.0" cross CrossVersion.patch)
-addCompilerPlugin("org.scalamacros" % "paradise"            % "2.1.1" cross CrossVersion.full)
+addCompilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.1")
+addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.11.0" cross CrossVersion.patch)
 
 PB.targets in Compile := Seq(
   scalapb.gen() -> (sourceManaged in Compile).value

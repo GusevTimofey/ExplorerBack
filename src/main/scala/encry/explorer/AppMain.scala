@@ -40,6 +40,7 @@ object AppMain extends TaskApp {
         (for {
           implicit0(logger: SelfAwareStructuredLogger[F]) <- Slf4jLogger.create[F]
 
+          //env = Env
           _                <- logger.info(s"Resources and implicit values were initialised successfully.")
           bestChainBlocks  <- Queue.bounded[F, HttpApiBlock](sr.encrySettings.rollbackMaxHeight * 2)
           forkBlocks       <- Queue.bounded[F, String](sr.encrySettings.rollbackMaxHeight)

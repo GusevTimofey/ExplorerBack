@@ -50,7 +50,7 @@ object NetworkObserver {
     ): List[UrlCurrentState] = {
       val infoMap: Map[UrlAddress, HttpApiNodeInfo]             = info.toMap
       val connectedMap: Map[UrlAddress, List[HttpApiPeersInfo]] = connected.toMap
-      infoMap.filterKeys(connectedMap.contains).foldLeft(List.empty[UrlCurrentState]) {
+      infoMap.view.filterKeys(connectedMap.contains).toMap.foldLeft(List.empty[UrlCurrentState]) {
         case (acc, (url, info)) =>
           connectedMap.get(url) match {
             case Some(value) =>
