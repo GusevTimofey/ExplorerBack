@@ -24,9 +24,9 @@ object AppMain extends TaskApp {
     }
 
   private def runModules[
-    F[_]: Timer: ConcurrentEffect: ContextShift: Parallel,
+    F[_]: Timer: ConcurrentEffect: ContextShift: Parallel: HasHttpApiContext: HasExplorerContext,
     CI[_]: LiftConnectionIO: Monad
-  ](implicit ec: HasExplorerContext[F], ac: HasHttpApiContext[F], clc: HasCoreContext[F, CI]): F[Unit] = {
+  ](implicit clc: HasCoreContext[F, CI]): F[Unit] = {
     val db: DBProgram[F]      = DBProgram[F, CI]
     val ep: EventsProducer[F] = EventsProducer[F]
     for {
