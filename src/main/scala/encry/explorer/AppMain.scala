@@ -12,14 +12,15 @@ import encry.explorer.core.programs.DBProgram
 import encry.explorer.env._
 import encry.explorer.events.processing.EventsProducer
 import monix.eval.{ Task, TaskApp }
+import tofu.HasContext
 
 object AppMain extends TaskApp {
   override def run(args: List[String]): Task[ExitCode] =
     ExplorerContext.make[Task].use {
       case (cC, clC, ec) =>
-        implicit val coreContext     = cC
-        implicit val clientContext   = clC
-        implicit val explorerContext = ec
+        implicit val coreContext: HasContext[Task, CoreContext[Task, ConnectionIO]] = cC
+        implicit val clientContext: HasContext[Task, HttpClientContext[Task]]       = clC
+        implicit val explorerContext: HasContext[Task, ExplorerContext[Task]]       = ec
         runModules[Task, ConnectionIO].as(ExitCode.Success)
     }
 
