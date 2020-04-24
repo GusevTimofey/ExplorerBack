@@ -13,10 +13,9 @@ import encry.explorer.chain.observer.services.{ ClientService, GatheringService 
 import encry.explorer.core.UrlAddress
 import encry.explorer.core.constants._
 import encry.explorer.core.services.DBReaderService
-import encry.explorer.env.{ ContextClientQueues, ContextHttpClient, ContextLogging, ContextSharedQueues }
-import encry.explorer.events.processing.{ ExplorerEvent, RollbackOccurred }
+import encry.explorer.env.{ ContextClientQueues, ContextSharedQueues }
+import encry.explorer.events.processing.RollbackOccurred
 import fs2.Stream
-import fs2.concurrent.Queue
 import io.estatico.newtype.macros.newtype
 
 import scala.concurrent.duration._

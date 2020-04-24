@@ -2,8 +2,8 @@ package encry.explorer.chain.observer.http.api.models.boxes
 
 import cats.syntax.functor._
 import encry.explorer.chain.observer.TypeId
-import encry.explorer.core.{Amount, Data, Id, Nonce, TokenId}
-import io.circe.{Decoder, Encoder}
+import encry.explorer.core.{ Amount, Data, Id, Nonce, TokenId }
+import io.circe.{ Decoder, Encoder }
 import io.circe.syntax._
 import io.circe.generic.JsonCodec
 
