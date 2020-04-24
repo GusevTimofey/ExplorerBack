@@ -14,6 +14,4 @@ package object env {
 
   type ContextClientQueues[F[_]] = F HasContext HttpClientQueuesContext[F]
 
-  type ContextLogging[F[_]] = F HasContext LoggerContext[F]
-
 }

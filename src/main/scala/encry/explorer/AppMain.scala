@@ -11,6 +11,8 @@ import encry.explorer.core.db.algebra.LiftConnectionIO.instances._
 import encry.explorer.core.services.{ DBReaderService, DBService }
 import encry.explorer.env._
 import encry.explorer.events.processing.EventsProducer
+import io.chrisdavenport.log4cats.SelfAwareStructuredLogger
+import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import monix.eval.{ Task, TaskApp }
 import tofu.{ Context, HasContext }
 
@@ -29,6 +31,9 @@ object AppMain extends TaskApp {
   ): F[Unit] =
     for {
       sr <- contextApplication.ask(_.explorerSettings)
+
+      implicit0(logger: SelfAwareStructuredLogger[F]) <- Slf4jLogger.create[F]
+
       implicit0(dbC: HasContext[F, DBContext[ConnectionIO, F]]) <- contextApplication
                                                                     .ask(_.dbContext)
                                                                     .map(
@@ -37,9 +42,6 @@ object AppMain extends TaskApp {
       implicit0(sharedQC: HasContext[F, SharedQueuesContext[F]]) <- contextApplication
                                                                      .ask(_.sharedQueuesContext)
                                                                      .map(Context.const[F, SharedQueuesContext[F]](_))
-      implicit0(loggingC: HasContext[F, LoggerContext[F]]) <- contextApplication
-                                                               .ask(_.logger)
-                                                               .map(Context.const[F, LoggerContext[F]](_))
       implicit0(httpClientC: HasContext[F, HttpClientContext[F]]) <- contextApplication
                                                                       .ask(_.httpClientContext)
                                                                       .map(Context.const[F, HttpClientContext[F]](_))

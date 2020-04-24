@@ -15,7 +15,7 @@ import encry.explorer.chain.observer.BanTime
 import encry.explorer.chain.observer.http.api.models.HttpApiNodeInfo
 import encry.explorer.chain.observer.services.{ ClientService, GatheringService }
 import encry.explorer.core.UrlAddress
-import encry.explorer.core.settings.ExplorerSettings
+import encry.explorer.core.settings.ExplorerSettingsContext
 import encry.explorer.env.{ ContextClientQueues, ContextSharedQueues }
 import encry.explorer.events.processing.{ NewNode, UnavailableNode }
 import fs2.Stream
@@ -36,7 +36,7 @@ object UrlsManager {
   def apply[F[_]: Timer: Concurrent: Logger](
     clientService: ClientService[F],
     gatheringService: GatheringService[F],
-    SR: ExplorerSettings
+    SR: ExplorerSettingsContext
   )(implicit sharedQC: ContextSharedQueues[F], clientQC: ContextClientQueues[F]): F[UrlsManager[F]] =
     for {
       localUrlsInfo <- Ref.of[F, Map[UrlAddress, UrlInfo]](

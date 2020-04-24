@@ -1,18 +1,19 @@
 package encry.explorer.core.services
 
-import cats.{Monad, ~>}
-import cats.effect.{Concurrent, Timer}
+import cats.effect.{ Concurrent, Timer }
 import cats.instances.try_._
 import cats.syntax.applicative._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
-import doobie.free.connection.ConnectionIO
+import cats.{ ~>, Monad }
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
 import encry.explorer.core.Id
 import encry.explorer.core.db.algebra.LiftConnectionIO
-import encry.explorer.core.db.models.{HeaderDBModel, InputDBModel, OutputDBModel, TransactionDBModel}
-import encry.explorer.env.{ContextDB, ContextLogging, ContextSharedQueues}
+import encry.explorer.core.db.models.{ HeaderDBModel, InputDBModel, OutputDBModel, TransactionDBModel }
+import encry.explorer.env.{ ContextDB, ContextSharedQueues }
 import fs2.Stream
+import io.chrisdavenport.log4cats.Logger
+
 import scala.util.Try
 
 trait DBService[F[_]] {
@@ -22,10 +23,9 @@ trait DBService[F[_]] {
 }
 
 object DBService {
-  def apply[F[_]: Timer: Concurrent, CI[_]: Monad: LiftConnectionIO](transformF: CI ~> F)(
+  def apply[F[_]: Timer: Concurrent: Logger, CI[_]: Monad: LiftConnectionIO](transformF: CI ~> F)(
     implicit dbContext: ContextDB[CI, F],
-    sharedQueuesContext: ContextSharedQueues[F],
-    loggingContext: ContextLogging[F]
+    sharedQueuesContext: ContextSharedQueues[F]
   ): F[DBService[F]] =
     for {
       blocksToInsert        <- sharedQueuesContext.ask(_.bestChainBlocks)
@@ -34,7 +34,6 @@ object DBService {
       inputRepository       <- dbContext.ask(_.repositoriesContext.ir)
       outputRepository      <- dbContext.ask(_.repositoriesContext.or)
       transactionRepository <- dbContext.ask(_.repositoriesContext.tr)
-      logger                <- loggingContext.ask(_.logger)
     } yield new DBService[F] {
 
       override def run: Stream[F, Unit] = updateChain concurrently resolveFork
@@ -69,7 +68,7 @@ object DBService {
                 _ <- inputRepository.insertMany(dbComponents.dbInputs)
                 _ <- outputRepository.insertMany(dbComponents.dbOutputs)
               } yield ())
-          _ <- logger.info(
+          _ <- Logger[F].info(
                 s"Block inserted with id: ${httpBlock.header.id} at height ${httpBlock.header.height}. " +
                   s"Txs number is: ${httpBlock.payload.transactions.size}."
               )

@@ -5,7 +5,7 @@ import cats.syntax.flatMap._
 import cats.syntax.functor._
 import encry.explorer.chain.observer.programs.UrlsManager.UrlCurrentState
 import encry.explorer.core.UrlAddress
-import encry.explorer.core.settings.ExplorerSettings
+import encry.explorer.core.settings.ExplorerSettingsContext
 import fs2.concurrent.Queue
 
 case class HttpClientQueuesContext[F[_]](
@@ -14,7 +14,7 @@ case class HttpClientQueuesContext[F[_]](
 )
 
 object HttpClientQueuesContext {
-  def create[F[_]: Concurrent](ES: ExplorerSettings): F[HttpClientQueuesContext[F]] =
+  def create[F[_]: Concurrent](ES: ExplorerSettingsContext): F[HttpClientQueuesContext[F]] =
     for {
       unreachableUrlsQueue <- Queue.bounded[F, UrlAddress](ES.httpClientSettings.maxConnections * 2)
       urlStatisticQueue    <- Queue.bounded[F, UrlCurrentState](ES.httpClientSettings.maxConnections * 2)
