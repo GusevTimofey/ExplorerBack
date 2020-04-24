@@ -4,14 +4,9 @@ import tofu.HasContext
 
 package object env {
 
-  type ContextDB[CI[_], F[_]] = F HasContext DBContext[CI, F]
+  type HasCoreContext[F[_], CI[_]] = F HasContext CoreContext[F, CI]
 
-  type ContextHttpClient[F[_]] = F HasContext HttpClientContext[F]
+  type HasExplorerContext[F[_]] = F HasContext ExplorerContext[F]
 
-  type ContextApplication[F[_], CI[_]] = F HasContext AppContext[F, CI]
-
-  type ContextSharedQueues[F[_]] = F HasContext SharedQueuesContext[F]
-
-  type ContextClientQueues[F[_]] = F HasContext HttpClientQueuesContext[F]
-
+  type HasHttpApiContext[F[_]] = F HasContext HttpClientContext[F]
 }

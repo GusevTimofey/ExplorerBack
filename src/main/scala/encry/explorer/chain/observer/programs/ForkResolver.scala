@@ -13,7 +13,7 @@ import encry.explorer.chain.observer.services.{ ClientService, GatheringService 
 import encry.explorer.core.UrlAddress
 import encry.explorer.core.constants._
 import encry.explorer.core.services.DBReaderService
-import encry.explorer.env.{ ContextClientQueues, ContextSharedQueues }
+import encry.explorer.env.HasExplorerContext
 import encry.explorer.events.processing.RollbackOccurred
 import fs2.Stream
 import io.estatico.newtype.macros.newtype
@@ -31,12 +31,8 @@ object ForkResolver {
     dbReaderService: DBReaderService[F],
     urlsManagerService: UrlsManager[F],
     isChainSyncedRef: Ref[F, Boolean]
-  )(implicit sharedQC: ContextSharedQueues[F], clientQC: ContextClientQueues[F]): F[ForkResolver[F]] =
-    for {
-      blocksToResolve     <- sharedQC.ask(_.bestChainBlocks)
-      blocksMarkAsNonBest <- sharedQC.ask(_.forkBlocks)
-      eventsQueue         <- sharedQC.ask(_.eventsQueue)
-    } yield new ForkResolver[F] {
+  )(implicit ec: HasExplorerContext[F]): ForkResolver[F] =
+    new ForkResolver[F] {
 
       override def run: Stream[F, Unit] =
         Stream(()).repeat
@@ -63,9 +59,12 @@ object ForkResolver {
                      val f: UrlAddress => F[Either[HttpApiErr, HttpApiBlock]] = clientService.getBlockBy(ids._2.value)
                      f
                    }, urlsForRequest)
-          _ <- eventsQueue.enqueue1(RollbackOccurred(blocks.head.header.id.getValue, blocks.head.header.height.value))
-          _ <- blocksToResolve.enqueue(Stream.emits(blocks)).compile.drain
-          _ <- blocksMarkAsNonBest.enqueue(Stream.emits(forks.map(_._1.value))).compile.drain
+          _ <- ec.askF(
+                _.sharedQueuesContext.eventsQueue
+                  .enqueue1(RollbackOccurred(blocks.head.header.id.getValue, blocks.head.header.height.value))
+              )
+          _ <- ec.askF(_.sharedQueuesContext.bestChainBlocks.enqueue(Stream.emits(blocks)).compile.drain)
+          _ <- ec.askF(_.sharedQueuesContext.forkBlocks.enqueue(Stream.emits(forks.map(_._1.value))).compile.drain)
         } yield ()
 
       private def computeMostFrequent[R](list: List[(UrlAddress, R)]): Option[(R, List[UrlAddress])] =

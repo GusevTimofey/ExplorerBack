@@ -9,6 +9,7 @@ import cats.syntax.option._
 import encry.explorer.chain.observer.errors.{ AddressIsUnreachable, HttpApiErr, NoSuchElementErr }
 import encry.explorer.chain.observer.http.api.models.{ HttpApiBlock, HttpApiNodeInfo, HttpApiPeersInfo }
 import encry.explorer.core.UrlAddress
+import encry.explorer.env.HasExplorerContext
 import io.chrisdavenport.log4cats.Logger
 import io.circe._
 import org.http4s.circe.CirceEntityDecoder._
@@ -40,7 +41,7 @@ trait ClientService[F[_]] {
 }
 
 object ClientService {
-  def apply[F[_]: Sync: Logger: Timer](client: Client[F]): ClientService[F] =
+  def apply[F[_]: Sync: Timer](client: Client[F])(implicit ec: HasExplorerContext[F]): ClientService[F] =
     new ClientService[F] {
 
       private val policy: RetryPolicy[F] =
@@ -82,7 +83,8 @@ object ClientService {
             .expect[List[R]](getRequest(request))
             .handleErrorWith {
               case InvalidMessageBodyFailure(_, cause) =>
-                Logger[F].info(s"Request $request failed with cause $cause.").map(_ => List.empty[R])
+                ec.ask(_.logger)
+                  .flatMap(_.info(s"Request $request failed with cause $cause.").map(_ => List.empty[R]))
             }
             .map {
               case Nil  => NoSuchElementErr.asLeft[List[R]]
@@ -100,7 +102,8 @@ object ClientService {
             .expectOption[R](getRequest(request))
             .handleErrorWith {
               case InvalidMessageBodyFailure(_, cause) =>
-                Logger[F].info(s"Request $request failed with cause $cause.").map(_ => none[R])
+                ec.ask(_.logger)
+                  .flatMap(_.info(s"Request $request failed with cause $cause.").map(_ => none[R]))
             }
             .map(Either.fromOption(_, NoSuchElementErr)),
           request + optionalRequestInfo
@@ -116,17 +119,25 @@ object ClientService {
           .retryingOnAllErrors(
             policy,
             (_, details: RetryDetails) =>
-              Logger[F].info(
-                s"Failed to perform request: $requestContent. " +
-                  s"Retry details are: ${retryDetailsLogMessage(details)}. " +
-                  s"Going to retry this request again."
-              )
+              ec.ask(_.logger)
+                .flatMap(
+                  _.info(
+                    s"Failed to perform request: $requestContent. " +
+                      s"Retry details are: ${retryDetailsLogMessage(details)}. " +
+                      s"Going to retry this request again."
+                  )
+                )
           )
-          .flatTap(result => Logger[F].debug(s"Request $requestContent finished successfully. Result is: $result."))
+          .flatTap(result =>
+            ec.ask(_.logger)
+              .flatMap(_.debug(s"Request $requestContent finished successfully. Result is: $result."))
+          )
           .handleErrorWith { _: Throwable =>
-            Logger[F]
-              .info(s"Retrying attempts for request $requestContent have ended.")
-              .map(_ => AddressIsUnreachable.asLeft[M])
+            ec.ask(_.logger)
+              .flatMap(
+                _.info(s"Retrying attempts for request $requestContent have ended.")
+                  .map(_ => AddressIsUnreachable.asLeft[M])
+              )
           }
 
       private def retryDetailsLogMessage: RetryDetails => String = {

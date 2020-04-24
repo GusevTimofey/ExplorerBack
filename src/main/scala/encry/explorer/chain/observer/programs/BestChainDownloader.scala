@@ -9,7 +9,7 @@ import cats.syntax.flatMap._
 import cats.syntax.functor._
 import encry.explorer.chain.observer.services.{ ClientService, GatheringService }
 import encry.explorer.core.{ Id, UrlAddress }
-import encry.explorer.env.ContextSharedQueues
+import encry.explorer.env.HasExplorerContext
 import encry.explorer.events.processing.NewBlockReceived
 import fs2.Stream
 import io.chrisdavenport.log4cats.Logger
@@ -22,17 +22,14 @@ trait BestChainDownloader[F[_]] {
 }
 
 object BestChainDownloader {
-  def apply[F[_]: Sync: Timer: Logger](
+  def apply[F[_]: Sync: Timer](
     gatheringService: GatheringService[F],
     urlsManagerService: UrlsManager[F],
     clientService: ClientService[F],
     isChainSyncedRef: Ref[F, Boolean],
     initialExplorerHeight: Int
-  )(implicit sharedQC: ContextSharedQueues[F]): F[BestChainDownloader[F]] =
-    for {
-      bestChainBlocks <- sharedQC.ask(_.bestChainBlocks)
-      eventsQueue     <- sharedQC.ask(_.eventsQueue)
-    } yield new BestChainDownloader[F] {
+  )(implicit ec: HasExplorerContext[F]): BestChainDownloader[F] =
+    new BestChainDownloader[F] {
       override def run: Stream[F, Unit] =
         Stream.eval(downloadNext(initialExplorerHeight))
 
@@ -44,14 +41,19 @@ object BestChainDownloader {
                         case Some((id, urls)) =>
                           gatheringService.gatherFirst(clientService.getBlockBy(id.getValue), urls).flatMap {
                             case Some(block) =>
-                              Logger[F].info(
+                              ec.askF(_.logger.info(
                                 s"Block with id: ${block.header.id} " +
                                   s"at height ${block.header.height} " +
                                   s"received from http api successfully."
-                              ) >> bestChainBlocks
-                                .enqueue1(block)
-                                .map(_ => workingHeight + 1)
-                                .flatTap(_ => eventsQueue.enqueue1(NewBlockReceived(block.header.id.getValue)))
+                              )) >> ec.askF { context =>
+                                context.sharedQueuesContext.bestChainBlocks
+                                  .enqueue1(block)
+                                  .map(_ => workingHeight + 1)
+                                  .flatTap(_ =>
+                                    context.sharedQueuesContext.eventsQueue
+                                      .enqueue1(NewBlockReceived(block.header.id.getValue))
+                                  )
+                              }
 
                             case None => workingHeight.pure[F]
                           }

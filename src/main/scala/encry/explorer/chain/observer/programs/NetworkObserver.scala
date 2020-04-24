@@ -8,9 +8,9 @@ import encry.explorer.chain.observer.http.api.models.{ HttpApiNodeInfo, HttpApiP
 import encry.explorer.chain.observer.programs.UrlsManager.UrlCurrentState
 import encry.explorer.chain.observer.services.{ ClientService, GatheringService }
 import encry.explorer.core.UrlAddress
-import encry.explorer.env.{ ContextClientQueues, ContextSharedQueues }
+import encry.explorer.env.HasExplorerContext
 import fs2.Stream
-import io.chrisdavenport.log4cats.Logger
+import fs2.concurrent.Queue
 
 import scala.concurrent.duration._
 import scala.util.Try
@@ -20,19 +20,18 @@ trait NetworkObserver[F[_]] {
 }
 
 object NetworkObserver {
-  def apply[F[_]: Sync: Timer: Logger](
+  def apply[F[_]: Sync: Timer](
     clientService: ClientService[F],
     gatheringService: GatheringService[F],
-    urlsManager: UrlsManager[F]
-  )(implicit sharedQC: ContextSharedQueues[F], clientQC: ContextClientQueues[F]): F[NetworkObserver[F]] =
-    for {
-      outgoingUrlStatistic <- clientQC.ask(_.urlStatisticQueue)
-    } yield new NetworkObserver[F] {
+    urlsManager: UrlsManager[F],
+    outgoingUrlStatistic: Queue[F, UrlCurrentState]
+  )(implicit ec: HasExplorerContext[F]): NetworkObserver[F] =
+    new NetworkObserver[F] {
       override def run: Stream[F, Unit] =
         Stream(()).repeat
           .covary[F]
           .metered(30.seconds)
-          .flatTap(_ => Stream.eval(Logger[F].info(s"Performing getInfo request for all known urls.")))
+          .flatTap(_ => Stream.eval(ec.askF(_.logger.info(s"Performing getInfo request for all known urls."))))
           .evalMap(_ => getNetworkInfo)
 
       private def getNetworkInfo: F[Unit] =
@@ -41,7 +40,7 @@ object NetworkObserver {
           nodesInfo     <- gatheringService.gatherAll(clientService.getClientInfo, urls)
           connectedInfo <- gatheringService.gatherAll(clientService.getConnectedPeers, urls)
           toUrlsManager = mergeConnectedWithInfo(nodesInfo, connectedInfo)
-          _             <- Logger[F].info(s"Urls statistics are: ${toUrlsManager.mkString(",")}.")
+          _             <- ec.askF(_.logger.info(s"Urls statistics are: ${toUrlsManager.mkString(",")}."))
           _             <- outgoingUrlStatistic.enqueue(Stream.emits(toUrlsManager)).compile.drain
         } yield ()
 

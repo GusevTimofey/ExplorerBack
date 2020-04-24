@@ -1,10 +1,9 @@
 package encry.explorer.core.services
 
-import cats.{ ~>, Monad }
-import cats.syntax.functor._
+import cats.Monad
 import encry.explorer.core.Id
 import encry.explorer.core.db.algebra.LiftConnectionIO
-import encry.explorer.env.ContextDB
+import encry.explorer.env.HasCoreContext
 
 trait DBReaderService[F[_]] {
 
@@ -15,13 +14,13 @@ trait DBReaderService[F[_]] {
 
 object DBReaderService {
   def apply[F[_]: Monad, CI[_]: LiftConnectionIO](
-    transactor: CI ~> F
-  )(implicit dBContext: ContextDB[CI, F]): F[DBReaderService[F]] =
-    for {
-      headerRepo <- dBContext.ask(_.repositoriesContext.hr)
-    } yield new DBReaderService[F] {
-      override def getLastIds(quantity: Int): F[List[Id]] = transactor(headerRepo.getLast(quantity))
+    implicit coreContext: HasCoreContext[F, CI]
+  ): DBReaderService[F] =
+    new DBReaderService[F] {
+      override def getLastIds(quantity: Int): F[List[Id]] =
+        coreContext.askF(cxt => cxt.transactor(cxt.repositoriesContext.hr.getLast(quantity)))
 
-      override def getBestHeight: F[Option[Int]] = transactor(headerRepo.getBestHeight)
+      override def getBestHeight: F[Option[Int]] =
+        coreContext.askF(cxt => cxt.transactor(cxt.repositoriesContext.hr.getBestHeight))
     }
 }
