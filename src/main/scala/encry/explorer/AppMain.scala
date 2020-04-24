@@ -1,6 +1,5 @@
 package encry.explorer
 
-import cats.effect.Resource.liftF
 import cats.effect.{ ConcurrentEffect, ContextShift, ExitCode, Timer }
 import cats.syntax.flatMap._
 import cats.syntax.functor._
@@ -10,18 +9,13 @@ import encry.explorer.chain.observer.programs.ObserverProgram
 import encry.explorer.core.db.algebra.LiftConnectionIO
 import encry.explorer.core.db.algebra.LiftConnectionIO.instances._
 import encry.explorer.core.programs.DBProgram
-import encry.explorer.core.settings.SettingsReader
 import encry.explorer.env._
 import encry.explorer.events.processing.EventsProducer
 import monix.eval.{ Task, TaskApp }
 
 object AppMain extends TaskApp {
   override def run(args: List[String]): Task[ExitCode] =
-    (for {
-      settings <- liftF(SettingsReader.read[Task])
-      db       <- DBContext.create[Task, ConnectionIO](settings.dbSettings)
-      context  <- ExplorerContext.make[Task, ConnectionIO](db.transactor.trans)
-    } yield context).use {
+    ExplorerContext.make[Task].use {
       case (cC, clC, ec) =>
         implicit val coreContext     = cC
         implicit val clientContext   = clC

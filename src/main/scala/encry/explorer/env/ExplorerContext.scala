@@ -1,14 +1,14 @@
 package encry.explorer.env
 
-import cats.effect.{ Concurrent, ConcurrentEffect, ContextShift, Resource, Sync }
+import cats.effect.{ ConcurrentEffect, ContextShift, Resource }
 import cats.syntax.applicative._
 import cats.~>
 import doobie.free.connection.ConnectionIO
 import encry.explorer.core.db.algebra.LiftConnectionIO
+import encry.explorer.core.db.algebra.LiftConnectionIO.instances._
 import encry.explorer.core.settings.{ ExplorerSettingsContext, SettingsReader }
 import io.chrisdavenport.log4cats.SelfAwareStructuredLogger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
-import monix.eval.Task
 import tofu.{ Context, HasContext }
 
 final case class ExplorerContext[F[_]](
@@ -32,33 +32,28 @@ object ExplorerContext {
 
   import cats.effect.Resource._
 
-  private def create[F[_]: ConcurrentEffect: ContextShift, CI[_]: LiftConnectionIO](
-    transactor: CI ~> F,
-    settings: ExplorerSettingsContext
-  ): Resource[F, ContextContainer[F, CI]] =
-    for {
-      logger        <- liftF(Slf4jLogger.create[F])
-      sharedQueues  <- liftF(SharedQueuesContext.create[F](settings))
-      repositories  <- liftF(RepositoriesContext.create[CI].pure[F])
-      clientContext <- HttpClientContext.create[F](settings.httpClientSettings)
-    } yield ContextContainer[F, CI](
-      ExplorerContext(settings, logger, sharedQueues),
-      CoreContext[F, CI](repositories, transactor),
-      clientContext
-    )
-
-  def make[F[_]: ContextShift: ConcurrentEffect, CI[_]: LiftConnectionIO](
-    transact: CI ~> F
+  private def create[F[_]: ContextShift: ConcurrentEffect, CI[_]: LiftConnectionIO](
+    transactor: CI ~> F
   ): Resource[
     F,
     (HasContext[F, CoreContext[F, CI]], HasContext[F, HttpClientContext[F]], HasContext[F, ExplorerContext[F]])
   ] =
     for {
-      settings         <- liftF(SettingsReader.read[F])
-      contextContainer <- ExplorerContext.create[F, CI](transact, settings)
+      settings      <- liftF(SettingsReader.read[F])
+      logger        <- liftF(Slf4jLogger.create[F])
+      sharedQueues  <- liftF(SharedQueuesContext.create[F](settings))
+      repositories  <- liftF(RepositoriesContext.create[CI].pure[F])
+      clientContext <- HttpClientContext.create[F](settings.httpClientSettings)
     } yield (
-      Context.const(contextContainer.cc),
-      Context.const(contextContainer.hc),
-      Context.const(contextContainer.ec)
+      Context.const(CoreContext[F, CI](repositories, transactor)),
+      Context.const(clientContext),
+      Context.const(ExplorerContext(settings, logger, sharedQueues))
     )
+
+  def make[F[_]: ConcurrentEffect: ContextShift] =
+    for {
+      settings <- liftF(SettingsReader.read[F])
+      db       <- DBContext.create[F, ConnectionIO](settings.dbSettings)
+      context  <- ExplorerContext.create[F, ConnectionIO](db.transactor.trans)
+    } yield context
 }
