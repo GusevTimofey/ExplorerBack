@@ -1,5 +1,6 @@
 package encry.explorer.env
 
+import cats.effect.concurrent.Deferred
 import cats.effect.{ ConcurrentEffect, ContextShift, Resource }
 import cats.syntax.applicative._
 import cats.~>
@@ -14,7 +15,8 @@ import tofu.{ Context, HasContext }
 final case class ExplorerContext[F[_]](
   settings: ExplorerSettingsContext,
   logger: SelfAwareStructuredLogger[F],
-  sharedQueuesContext: SharedQueuesContext[F]
+  sharedQueuesContext: SharedQueuesContext[F],
+  initialHeight: Deferred[F, Int]
 )
 
 final case class CoreContext[F[_], CI[_]](
@@ -39,15 +41,16 @@ object ExplorerContext {
     (HasContext[F, CoreContext[F, CI]], HasContext[F, HttpClientContext[F]], HasContext[F, ExplorerContext[F]])
   ] =
     for {
-      settings      <- liftF(SettingsReader.read[F])
-      logger        <- liftF(Slf4jLogger.create[F])
-      sharedQueues  <- liftF(SharedQueuesContext.create[F](settings))
-      repositories  <- liftF(RepositoriesContext.create[CI].pure[F])
-      clientContext <- HttpClientContext.create[F](settings.httpClientSettings)
+      settings       <- liftF(SettingsReader.read[F])
+      logger         <- liftF(Slf4jLogger.create[F])
+      sharedQueues   <- liftF(SharedQueuesContext.create[F](settings))
+      repositories   <- liftF(RepositoriesContext.create[CI].pure[F])
+      clientContext  <- HttpClientContext.create[F](settings.httpClientSettings)
+      heightDeferred <- liftF(Deferred[F, Int])
     } yield (
       Context.const(CoreContext[F, CI](repositories, transactor)),
       Context.const(clientContext),
-      Context.const(ExplorerContext(settings, logger, sharedQueues))
+      Context.const(ExplorerContext(settings, logger, sharedQueues, heightDeferred))
     )
 
   def make[F[_]: ConcurrentEffect: ContextShift] =

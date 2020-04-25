@@ -13,7 +13,7 @@ import encry.explorer.core.db.models.{ HeaderDBModel, InputDBModel, OutputDBMode
 import encry.explorer.env.{ HasCoreContext, HasExplorerContext }
 import fs2.Stream
 
-import scala.util.Try
+import scala.util.{ Failure, Success, Try }
 
 trait DBProgram[F[_]] {
   def run: Stream[F, Unit]
@@ -59,7 +59,12 @@ object DBProgram {
           .flatMap {
             case (forkBlocks, transformF, headerRepository) =>
               forkBlocks.dequeue.evalMap { id =>
-                transformF(headerRepository.updateBestChainField(Id.fromString[Try](id).get, statement = false))
+                Id.fromString[Try](id) match {
+                  case Failure(exception) =>
+                    explorerContext.askF(_.logger.info(s"Inconsistent id: ${exception.getMessage}")).map(_ => 0)
+                  case Success(value) =>
+                    transformF(headerRepository.updateBestChainField(value, statement = false))
+                }
               }.void
           }
 

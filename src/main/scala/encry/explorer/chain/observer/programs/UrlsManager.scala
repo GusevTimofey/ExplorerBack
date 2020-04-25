@@ -42,7 +42,8 @@ object UrlsManager {
       sr <- ex.ask(_.settings)
       localUrlsInfo <- Ref.of[F, Map[UrlAddress, UrlInfo]](
                         sr.httpClientSettings.encryNodes
-                          .map(url => UrlAddress.fromString[Try](url).get -> UrlInfo.empty)
+                          .flatMap(UrlAddress.fromString[Try](_).toOption)
+                          .map(_ -> UrlInfo.empty)
                           .toMap
                       )
       bannedUrls <- Ref.of[F, Map[UrlAddress, BanTime]](Map.empty)
@@ -72,9 +73,7 @@ object UrlsManager {
             Stream.eval {
               ex.askF(_.logger.info(s"Performing cleanup operation.")) >>
                 bannedUrls.get.flatMap(urls => ex.ask(_.logger).flatMap(_.info(s"${formLogsForBanned(urls)}"))) >>
-                localUrlsInfo.get.flatMap(urls =>
-                  ex.askF(_.logger.info(s"local urls are: ${urls.mkString(",")}."))
-                )
+                localUrlsInfo.get.flatMap(urls => ex.askF(_.logger.info(s"local urls are: ${urls.mkString(",")}.")))
             }
           }
           .evalMap { _ =>
