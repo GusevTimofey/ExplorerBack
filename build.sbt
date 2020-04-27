@@ -67,6 +67,7 @@ libraryDependencies ++= Seq(
   "ru.tinkoff"            %% "tofu-env"               % "0.7.4",
   "org.typelevel"         %% "cats-tagless-macros"    % "0.11",
   "io.monix"              %% "monix"                  % "3.1.0",
+  "ch.qos.logback"        % "logback-classic"         % "1.2.3",
   "io.chrisdavenport"     %% "log4cats-slf4j"         % "0.4.0-M2",
   "io.estatico"           %% "newtype"                % "0.4.3",
   "com.github.pureconfig" %% "pureconfig"             % "0.12.2",

@@ -1,49 +1,37 @@
-package encry.explorer.core.services
+package encry.explorer.core.programs
 
+import cats.Monad
 import cats.effect.{ Concurrent, Timer }
 import cats.instances.try_._
 import cats.syntax.applicative._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
-import cats.{ ~>, Monad }
 import encry.explorer.chain.observer.http.api.models.HttpApiBlock
 import encry.explorer.core.Id
 import encry.explorer.core.db.algebra.LiftConnectionIO
 import encry.explorer.core.db.models.{ HeaderDBModel, InputDBModel, OutputDBModel, TransactionDBModel }
-import encry.explorer.core.db.repositories.{
-  HeaderRepository,
-  InputRepository,
-  OutputRepository,
-  TransactionRepository
-}
+import encry.explorer.env.{ HasCoreContext, HasExplorerContext }
 import fs2.Stream
-import fs2.concurrent.Queue
-import io.chrisdavenport.log4cats.Logger
 
-import scala.util.Try
+import scala.util.{ Failure, Success, Try }
 
-trait DBService[F[_]] {
+trait DBProgram[F[_]] {
   def run: Stream[F, Unit]
 
   def getBestHeightFromDB: F[Int]
 }
 
-object DBService {
-  def apply[F[_]: Timer: Concurrent: Logger, CI[_]: Monad: LiftConnectionIO](
-    blocksToInsert: Queue[F, HttpApiBlock],
-    forkBlocks: Queue[F, String],
-    headerRepository: HeaderRepository[CI],
-    inputRepository: InputRepository[CI],
-    outputRepository: OutputRepository[CI],
-    transactionRepository: TransactionRepository[CI],
-    transformF: CI ~> F
-  ): DBService[F] =
-    new DBService[F] {
+object DBProgram {
+  def apply[F[_]: Timer: Concurrent, CI[_]: Monad: LiftConnectionIO](
+    implicit coreContext: HasCoreContext[F, CI],
+    explorerContext: HasExplorerContext[F]
+  ): DBProgram[F] =
+    new DBProgram[F] {
 
       override def run: Stream[F, Unit] = updateChain concurrently resolveFork
 
       override def getBestHeightFromDB: F[Int] =
-        transformF(headerRepository.getBestHeight).map(_.getOrElse(0))
+        coreContext.askF(cxt => cxt.transactor(cxt.repositoriesContext.hr.getBestHeight).map(_.getOrElse(0)))
 
       //todo resolve used inputs
       private def httpBlockToDBComponents(inputBlock: HttpApiBlock): F[DbComponentsToInsert] = {
@@ -56,23 +44,46 @@ object DBService {
         DbComponentsToInsert(dbHeader, dbInputs, dbOutputs, dbTransactions).pure[F]
       }
 
-      private def updateChain: Stream[F, Unit] = blocksToInsert.dequeue.evalMap(insertNew)
+      private def updateChain(): Stream[F, Unit] =
+        Stream
+          .eval(explorerContext.ask(cxt => cxt.sharedQueuesContext.bestChainBlocks))
+          .flatMap(_.dequeue.evalMap(insertNew))
 
       private def resolveFork: Stream[F, Unit] =
-        forkBlocks.dequeue.evalMap { id =>
-          transformF(headerRepository.updateBestChainField(Id.fromString[Try](id).get, statement = false))
-        }.void
+        Stream
+          .eval(for {
+            forkBlocks       <- explorerContext.ask(_.sharedQueuesContext.forkBlocks)
+            transformF       <- coreContext.ask(_.transactor)
+            headerRepository <- coreContext.ask(_.repositoriesContext.hr)
+          } yield (forkBlocks, transformF, headerRepository))
+          .flatMap {
+            case (forkBlocks, transformF, headerRepository) =>
+              forkBlocks.dequeue.evalMap { id =>
+                Id.fromString[Try](id) match {
+                  case Failure(exception) =>
+                    explorerContext.askF(_.logger.info(s"Inconsistent id: ${exception.getMessage}")).map(_ => 0)
+                  case Success(value) =>
+                    transformF(headerRepository.updateBestChainField(value, statement = false))
+                }
+              }.void
+          }
 
       private def insertNew(httpBlock: HttpApiBlock): F[Unit] =
         for {
-          dbComponents <- httpBlockToDBComponents(httpBlock)
+          dbComponents          <- httpBlockToDBComponents(httpBlock)
+          transformF            <- coreContext.ask(_.transactor)
+          headerRepository      <- coreContext.ask(_.repositoriesContext.hr)
+          transactionRepository <- coreContext.ask(_.repositoriesContext.tr)
+          inputRepository       <- coreContext.ask(_.repositoriesContext.ir)
+          outputRepository      <- coreContext.ask(_.repositoriesContext.or)
           _ <- transformF(for {
                 _ <- headerRepository.insert(dbComponents.dbHeader)
                 _ <- transactionRepository.insertMany(dbComponents.dbTransactions)
                 _ <- inputRepository.insertMany(dbComponents.dbInputs)
                 _ <- outputRepository.insertMany(dbComponents.dbOutputs)
               } yield ())
-          _ <- Logger[F].info(
+          logger <- explorerContext.ask(_.logger)
+          _ <- logger.info(
                 s"Block inserted with id: ${httpBlock.header.id} at height ${httpBlock.header.height}. " +
                   s"Txs number is: ${httpBlock.payload.transactions.size}."
               )
